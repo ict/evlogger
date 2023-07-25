@@ -12,8 +12,12 @@ class Car(BaseModel):
     color: Color = "black"
 
 
-class CarInDb(Car):
+class DbIdMixin(BaseModel):
     id: str
+
+
+class CarInDb(Car, DbIdMixin):
+    pass
 
 
 class CPO(BaseModel):
@@ -21,8 +25,8 @@ class CPO(BaseModel):
     default_price: Decimal = Field(decimal_places=2, default="0.00")
 
 
-class CPOInDb(CPO):
-    id: str
+class CPOInDb(CPO, DbIdMixin):
+    pass
 
 
 class Charge(BaseModel):
@@ -37,5 +41,5 @@ class Charge(BaseModel):
     note: str | None = None
 
 
-class ChargeInDb(Charge):
-    id: str
+class ChargeInDb(Charge, DbIdMixin):
+    pass

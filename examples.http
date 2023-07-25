@@ -39,10 +39,10 @@ Content-Type: application/json
 
 {
   "date": "2023-07-10T13:37:00.000Z",
-  "car_id": "jkjnABfWipywu6ubMVUz9h",
+  "car_id": "64c00e19ecc334c930aa8711",
   "car_km": 8000,
   "kwh_charged": 22,
-  "cpo_id": "NJDjuSMkC3Em26Gf4Xjs97",
+  "cpo_id": "64c011887e27231730939fb5",
   "price_total": "15"
 }
 
@@ -50,6 +50,8 @@ Content-Type: application/json
 
 # List Cars
 http://127.0.0.1:8000/car
+###
+http://127.0.0.1:8000/car/64c00e19ecc334c930aa8711
 ###
 
 # List CPOs

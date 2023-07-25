@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 
-from app.core.config import COLLECTION_CARS, DATABASE_NAME, COLLECTION_CPOS
+import bson
+
+from app.core.config import COLLECTION_CARS, COLLECTION_CPOS
 from app.core.db import AsyncIOMotorClient
 from app.models.charging import Charge, ChargeInDb
 from app.operations.crud_base import CRUDBase, get_collection
@@ -11,16 +13,16 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
     """
     Checks the "foreign keys" of the entity and fills optional (denormalized) fields
     """
-    car_id = item.car_id
-    car = await db[DATABASE_NAME][COLLECTION_CARS].find_one({'id': car_id})
+    car_id = bson.ObjectId(item.car_id)
+    car = await get_collection(db, COLLECTION_CARS).find_one({'_id': car_id})
     if not car:
-        raise ValueError(f"car_id '{car_id}' does not exist")
+        raise ValueError(f"car_id '{str(car_id)}' does not exist")
     item.car_name = car.get('name', '')
 
-    cpo_id = item.cpo_id
-    cpo = await db[DATABASE_NAME][COLLECTION_CPOS].find_one({'id': cpo_id})
+    cpo_id = bson.ObjectId(item.cpo_id)
+    cpo = await get_collection(db, COLLECTION_CPOS).find_one({'_id': cpo_id})
     if not cpo:
-        raise ValueError(f"cpo_id '{cpo_id}' does not exist")
+        raise ValueError(f"cpo_id '{str(cpo_id)}' does not exist")
     item.cpo_name = cpo.get('name', '')
 
 
@@ -57,6 +59,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         entries = get_collection(db, self.collection).find(filters, limit=limit, skip=offset, sort=sort)
         results: list[ChargeInDb] = []
         async for entry in entries:
+            entry['id'] = str(entry['_id'])
             results.append(ChargeInDb(**entry))
         return results
 
@@ -69,5 +72,6 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         item_data.update(update_data)
         check_item = Charge(**item_data)
         await _check_references(db, check_item)
-        await get_collection(db, self.collection).update_one({'id': by_id}, {'$set': check_item.model_dump()})
+        await get_collection(db, self.collection).update_one({'_id': bson.ObjectId(by_id)},
+                                                             {'$set': check_item.model_dump()})
         return await self.get_by_id(db, by_id)

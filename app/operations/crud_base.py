@@ -2,7 +2,6 @@ from decimal import Decimal
 from typing import TypeVar, Generic
 
 import bson
-import shortuuid
 from bson.codec_options import CodecOptions, TypeRegistry, TypeCodec
 
 from app.core import config
@@ -47,8 +46,9 @@ class CRUDBase(Generic[InCls, DbCls]):
         self.dbcls = dbcls
 
     async def get_by_id(self, db: AsyncIOMotorClient, by_id: str) -> DbCls | None:
-        res = await get_collection(db, self.collection).find_one({'id': by_id})
+        res = await get_collection(db, self.collection).find_one({'_id': bson.ObjectId(by_id)})
         if res:
+            res['id'] = str(res['_id'])
             return self.dbcls(**res)
         return None
 
@@ -56,18 +56,18 @@ class CRUDBase(Generic[InCls, DbCls]):
         result: list[CarInDb] = []
         items = get_collection(db, self.collection).find(limit=limit, skip=offset)
         async for item in items:
+            item['id'] = str(item['_id'])
             result.append(self.dbcls(**item))
         return result
 
     async def create(self, db: AsyncIOMotorClient, new_item: InCls) -> DbCls:
         doc = new_item.model_dump()
-        doc['id'] = shortuuid.uuid()
         collection = get_collection(db, self.collection)
-        await collection.insert_one(doc)
-        return await self.get_by_id(db, doc['id'])
+        result = await collection.insert_one(doc)
+        return await self.get_by_id(db, result.inserted_id)
 
     async def delete_by_id(self, db: AsyncIOMotorClient, by_id: str) -> bool:
-        res = await get_collection(db, self.collection).delete_one({'id': by_id})
+        res = await get_collection(db, self.collection).delete_one({'_id': by_id})
         return res.deleted_count > 0
 
     async def update_by_id(self, db: AsyncIOMotorClient, by_id: str, new_item: InCls) -> DbCls | None:
@@ -77,5 +77,5 @@ class CRUDBase(Generic[InCls, DbCls]):
             return None
         item_data = old_item.model_dump()
         item_data.update(update_data)
-        await get_collection(db, self.collection).update_one({'id': by_id}, {'$set': item_data})
+        await get_collection(db, self.collection).update_one({'_id': by_id}, {'$set': item_data})
         return await self.get_by_id(db, by_id)

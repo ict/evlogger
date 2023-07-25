@@ -1,0 +1,77 @@
+# Create example car
+POST http://127.0.0.1:8000/car HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Koalamobil",
+    "make": "Peugeot",
+    "model": "e208",
+    "color": "blue"
+}
+
+###
+POST http://127.0.0.1:8000/car HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Testmobil",
+    "make": "Mercedes",
+    "model": "EQS 580",
+    "color": "#ffffff"
+}
+
+###
+
+# Create example CPO
+POST http://127.0.0.1:8000/cpo HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "Wallbox",
+  "default_price": "0.44"
+}
+
+###
+
+# Create example Charge
+POST http://127.0.0.1:8000/charge HTTP/1.1
+Content-Type: application/json
+
+{
+  "date": "2023-07-10T13:37:00.000Z",
+  "car_id": "jkjnABfWipywu6ubMVUz9h",
+  "car_km": 8000,
+  "kwh_charged": 22,
+  "cpo_id": "NJDjuSMkC3Em26Gf4Xjs97",
+  "price_total": "15"
+}
+
+###
+
+# List Cars
+http://127.0.0.1:8000/car
+###
+
+# List CPOs
+http://127.0.0.1:8000/cpo
+###
+
+# List charges
+http://127.0.0.1:8000/charge
+###
+http://127.0.0.1:8000/charge?timespan=7d
+###
+
+# Change a charge
+PUT http://127.0.0.1:8000/charge/RvBygrkCRCAVQLwSto4nEz
+Content-Type: application/json
+
+{
+    "date": "2023-07-10T13:37:00",
+    "car_id": "jkjnABfWipywu6ubMVUz9h",
+    "car_km": 7000,
+    "kwh_charged": "22",
+    "cpo_id": "NJDjuSMkC3Em26Gf4Xjs97",
+    "price_total": "15",
+    "note": "My edited note"
+}

@@ -2,15 +2,13 @@ from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
 from starlette.status import HTTP_204_NO_CONTENT
 
-import app.core.config
 from app.core.db import AsyncIOMotorClient, get_database
 from app.models.charging import CarInDb, Car
-from app.operations.crud_base import CRUDBase
+from app.operations.crud_base import CarCRUD
 
 router = APIRouter()
 
 DBDepend = Depends(get_database)
-CarCRUD = CRUDBase[Car, CarInDb](app.core.config.COLLECTION_CARS, Car, CarInDb)
 
 
 @router.get('/car', tags=['Cars'])

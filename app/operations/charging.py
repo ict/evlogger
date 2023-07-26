@@ -5,6 +5,7 @@ from typing import BinaryIO
 
 import bson
 
+import app.core
 from app.core.config import COLLECTION_CARS, COLLECTION_CPOS
 from app.core.db import AsyncIOMotorClient
 from app.models.charging import Charge, ChargeInDb, CarInDb
@@ -93,3 +94,6 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         reader = csv.DictReader(codecs.iterdecode(csv_handle, 'utf-8'), delimiter=delim)
         entry_no = 1
         return "test", "coming soon"
+
+
+ChargeCrudOp = ChargeCrud(app.core.config.COLLECTION_CHARGES)

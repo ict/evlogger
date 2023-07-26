@@ -4,17 +4,15 @@ from fastapi import APIRouter, Depends, UploadFile
 from fastapi.exceptions import HTTPException
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_406_NOT_ACCEPTABLE
 
-import app.core.config
 from app.core.db import AsyncIOMotorClient, get_database
 from app.models.charging import Charge, ChargeInDb, CarInDb
 from app.models.helpers import SimpleActionResult
-from app.operations.charging import ChargeCrud
-from app.routes.cars import CarCRUD
+from app.operations.charging import ChargeCrudOp
+from app.operations.crud_base import CarCRUD
 
 router = APIRouter()
 
 DBDepend = Depends(get_database)
-ChargeCrudOp = ChargeCrud(app.core.config.COLLECTION_CHARGES)
 
 
 @router.get('/charge', tags=['Charging'])

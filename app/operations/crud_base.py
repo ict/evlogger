@@ -4,9 +4,10 @@ from typing import TypeVar, Generic
 import bson
 from bson.codec_options import CodecOptions, TypeRegistry, TypeCodec
 
+import app.core
 from app.core import config
 from app.core.db import AsyncIOMotorClient
-from app.models.charging import CarInDb
+from app.models.charging import CarInDb, Car, CPO, CPOInDb
 
 InCls = TypeVar('InCls')
 DbCls = TypeVar('DbCls')
@@ -83,3 +84,7 @@ class CRUDBase(Generic[InCls, DbCls]):
         item_data.update(update_data)
         await get_collection(db, self.collection).update_one({'_id': bson.ObjectId(by_id)}, {'$set': item_data})
         return await self.get_by_id(db, by_id)
+
+
+CarCRUD = CRUDBase[Car, CarInDb](app.core.config.COLLECTION_CARS, Car, CarInDb)
+CPOCrud = CRUDBase[CPO, CPOInDb](app.core.config.COLLECTION_CPOS, CPO, CPOInDb)

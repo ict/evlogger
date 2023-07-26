@@ -1,13 +1,15 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile
 from fastapi.exceptions import HTTPException
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_406_NOT_ACCEPTABLE
 
 import app.core.config
 from app.core.db import AsyncIOMotorClient, get_database
-from app.models.charging import Charge, ChargeInDb
+from app.models.charging import Charge, ChargeInDb, CarInDb
+from app.models.helpers import SimpleActionResult
 from app.operations.charging import ChargeCrud
+from app.routes.cars import CarCRUD
 
 router = APIRouter()
 
@@ -58,3 +60,17 @@ async def update_charge_by_id(id: str, charge: Charge, db: AsyncIOMotorClient = 
     if not new_charge:
         raise HTTPException(404, "Not found")
     return new_charge
+
+
+async def car_from_id(car_id: str, db: AsyncIOMotorClient = DBDepend) -> CarInDb:
+    car = await CarCRUD.get_by_id(db, car_id)
+    if not car:
+        raise HTTPException(404, "Car not found")
+    return car
+
+
+@router.post('/charge/csv_import', tags=['Charging'])
+async def csv_import(csv_file: UploadFile, car: CarInDb = Depends(car_from_id), delimimiter: str = ',',
+                     db: AsyncIOMotorClient = DBDepend) -> SimpleActionResult:
+    status, msg = await ChargeCrudOp.csv_import(db, car, csv_file.file, delim=delimimiter)
+    return SimpleActionResult(result=status, message=msg)

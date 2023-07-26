@@ -1,3 +1,5 @@
+import codecs
+import csv
 from datetime import datetime, timedelta
 from typing import BinaryIO
 
@@ -85,3 +87,9 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         await get_collection(db, self.collection).update_one({'_id': bson.ObjectId(by_id)},
                                                              {'$set': check_item.model_dump()})
         return await self.get_by_id(db, by_id)
+
+    async def csv_import(self, db: AsyncIOMotorClient, car: CarInDb, csv_handle: BinaryIO, delim: str) -> tuple[
+        str, str]:
+        reader = csv.DictReader(codecs.iterdecode(csv_handle, 'utf-8'), delimiter=delim)
+        entry_no = 1
+        return "test", "coming soon"

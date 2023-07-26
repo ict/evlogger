@@ -1,7 +1,6 @@
 import datetime
-from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from pydantic_extra_types.color import Color
 
 
@@ -22,7 +21,7 @@ class CarInDb(Car, DbIdMixin):
 
 class CPO(BaseModel):
     name: str
-    default_price: Decimal = Field(decimal_places=2, default="0.00")
+    default_price: int = Field(..., description="Default price of one kWh in 1/100s of currency (e.g. cents)")
 
 
 class CPOInDb(CPO, DbIdMixin):
@@ -34,11 +33,16 @@ class Charge(BaseModel):
     car_id: str
     car_name: str | None = None
     car_km: int
-    kwh_charged: Decimal = Field(decimal_places=2)
+    kwh_charged: int | None = Field(..., description="Amount of kWh charged in 1/100s of a kWh")
     cpo_id: str
     cpo_name: str | None = None
-    price_total: Decimal = Field(decimal_places=2)
+    price_total: int | None = Field(description="Total amount paid in 1/100s of currency (e.g. cents)", default=None)
     note: str | None = None
+
+    @computed_field
+    @property
+    def price_per_kwh(self) -> int:
+        return int(round(self.price_total / (self.kwh_charged / 100)))
 
 
 class ChargeInDb(Charge, DbIdMixin):

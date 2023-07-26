@@ -25,6 +25,9 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
         raise ValueError(f"cpo_id '{str(cpo_id)}' does not exist")
     item.cpo_name = cpo.get('name', '')
 
+    if item.price_total is None:
+        item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
+
 
 class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
 

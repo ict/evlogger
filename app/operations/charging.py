@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
+from typing import BinaryIO
 
 import bson
 
 from app.core.config import COLLECTION_CARS, COLLECTION_CPOS
 from app.core.db import AsyncIOMotorClient
-from app.models.charging import Charge, ChargeInDb
+from app.models.charging import Charge, ChargeInDb, CarInDb
 from app.operations.crud_base import CRUDBase, get_collection
 from app.util.timeparse import timeparse
 
@@ -13,16 +14,22 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
     """
     Checks the "foreign keys" of the entity and fills optional (denormalized) fields
     """
-    car_id = bson.ObjectId(item.car_id)
+    try:
+        car_id = bson.ObjectId(item.car_id)
+    except:
+        raise ValueError(f"car_id '{item.car_id}' does not exist")
     car = await get_collection(db, COLLECTION_CARS).find_one({'_id': car_id})
     if not car:
-        raise ValueError(f"car_id '{str(car_id)}' does not exist")
+        raise ValueError(f"car_id '{item.car_id}' does not exist")
     item.car_name = car.get('name', '')
 
-    cpo_id = bson.ObjectId(item.cpo_id)
+    try:
+        cpo_id = bson.ObjectId(item.cpo_id)
+    except:
+        raise ValueError(f"cpo_id '{item.cpo_id}' does not exist")
     cpo = await get_collection(db, COLLECTION_CPOS).find_one({'_id': cpo_id})
     if not cpo:
-        raise ValueError(f"cpo_id '{str(cpo_id)}' does not exist")
+        raise ValueError(f"cpo_id '{item.cpo_id}' does not exist")
     item.cpo_name = cpo.get('name', '')
 
     if item.price_total is None:

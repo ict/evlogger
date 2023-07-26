@@ -46,7 +46,11 @@ class CRUDBase(Generic[InCls, DbCls]):
         self.dbcls = dbcls
 
     async def get_by_id(self, db: AsyncIOMotorClient, by_id: str) -> DbCls | None:
-        res = await get_collection(db, self.collection).find_one({'_id': bson.ObjectId(by_id)})
+        try:
+            object_id = bson.ObjectId(by_id)
+        except:
+            return None
+        res = await get_collection(db, self.collection).find_one({'_id': object_id})
         if res:
             res['id'] = str(res['_id'])
             return self.dbcls(**res)
@@ -77,5 +81,5 @@ class CRUDBase(Generic[InCls, DbCls]):
             return None
         item_data = old_item.model_dump()
         item_data.update(update_data)
-        await get_collection(db, self.collection).update_one({'_id': by_id}, {'$set': item_data})
+        await get_collection(db, self.collection).update_one({'_id': bson.ObjectId(by_id)}, {'$set': item_data})
         return await self.get_by_id(db, by_id)

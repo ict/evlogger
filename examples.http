@@ -75,5 +75,6 @@ Content-Type: application/json
     "kwh_charged": "22",
     "cpo_id": "NJDjuSMkC3Em26Gf4Xjs97",
     "price_total": "15",
-    "note": "My edited note"
+    "note": "My edited note",
+    "charge_type": "AC"
 }

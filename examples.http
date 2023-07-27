@@ -59,7 +59,7 @@ http://127.0.0.1:8000/cpo
 ###
 
 # List charges
-http://127.0.0.1:8000/charge
+http://127.0.0.1:8000/charge?limit=1000
 ###
 http://127.0.0.1:8000/charge?timespan=7d
 ###

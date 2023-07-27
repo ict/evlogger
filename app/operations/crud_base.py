@@ -57,6 +57,13 @@ class CRUDBase(Generic[InCls, DbCls]):
             return self.dbcls(**res)
         return None
 
+    async def get_by_property(self, db: AsyncIOMotorClient, property_name: str, property_value: str) -> DbCls | None:
+        res = await get_collection(db, self.collection).find_one({property_name: property_value})
+        if res:
+            res['id'] = str(res['_id'])
+            return self.dbcls(**res)
+        return None
+
     async def list(self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0) -> list[DbCls]:
         result: list[CarInDb] = []
         items = get_collection(db, self.collection).find(limit=limit, skip=offset)

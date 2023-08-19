@@ -4,16 +4,14 @@ from enum import Enum
 from pydantic import BaseModel, Field, computed_field
 from pydantic_extra_types.color import Color
 
+from app.models.helpers import DbIdMixin
+
 
 class Car(BaseModel):
     name: str
     make: str | None = None
     model: str | None = None
     color: Color = "black"
-
-
-class DbIdMixin(BaseModel):
-    id: str
 
 
 class CarInDb(Car, DbIdMixin):

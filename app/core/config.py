@@ -23,6 +23,7 @@ DATABASE_NAME = 'chargelogger'
 COLLECTION_CARS = 'cars'
 COLLECTION_CHARGES = 'charges'
 COLLECTION_CPOS = 'cpos'
+COLLECTION_USERS = 'users'
 
 ALLOWED_HOSTS = '*'
 PROJECT_NAME = 'chargelogger'

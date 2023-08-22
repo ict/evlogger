@@ -15,6 +15,7 @@ class Car(BaseModel):
 
 
 class CarInDb(Car, DbIdMixin):
+    owner_id: str
     pass
 
 

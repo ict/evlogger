@@ -24,7 +24,7 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
     try:
         car_id = bson.ObjectId(item.car_id)
     except:
-        raise ValueError(f"car_id '{item.car_id}' does not exist")
+        raise ValueError(f"car_id '{item.car_id}' invalid")
     car = await get_collection(db, COLLECTION_CARS).find_one({'_id': car_id})
     if not car:
         raise ValueError(f"car_id '{item.car_id}' does not exist")
@@ -33,7 +33,7 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
     try:
         cpo_id = bson.ObjectId(item.cpo_id)
     except:
-        raise ValueError(f"cpo_id '{item.cpo_id}' does not exist")
+        raise ValueError(f"cpo_id '{item.cpo_id}' invalid")
     cpo = await get_collection(db, COLLECTION_CPOS).find_one({'_id': cpo_id})
     if not cpo:
         raise ValueError(f"cpo_id '{item.cpo_id}' does not exist")
@@ -44,7 +44,6 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
 
 
 class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
-
     def __init__(self, collection_name: str):
         super().__init__(collection_name, Charge, ChargeInDb)
 
@@ -52,8 +51,15 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         await _check_references(db, item)  # raises on errors
         return await super().create(db, item)
 
-    async def list(self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0, timespan: str = None,
-                   from_date: datetime = None, to_date: datetime = None) -> list[ChargeInDb]:
+    async def list(
+        self,
+        db: AsyncIOMotorClient,
+        limit: int = 20,
+        offset: int = 0,
+        timespan: str = None,
+        from_date: datetime = None,
+        to_date: datetime = None,
+    ) -> list[ChargeInDb]:
         filters = {}
         if timespan:
             filters["date"] = {}
@@ -89,12 +95,14 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         item_data.update(update_data)
         check_item = Charge(**item_data)
         await _check_references(db, check_item)
-        await get_collection(db, self.collection).update_one({'_id': bson.ObjectId(by_id)},
-                                                             {'$set': check_item.model_dump()})
+        await get_collection(db, self.collection).update_one(
+            {'_id': bson.ObjectId(by_id)}, {'$set': check_item.model_dump()}
+        )
         return await self.get_by_id(db, by_id)
 
-    async def csv_import(self, db: AsyncIOMotorClient, car: CarInDb, csv_handle: BinaryIO, delim: str) -> tuple[
-        str, str]:
+    async def csv_import(
+        self, db: AsyncIOMotorClient, car: CarInDb, csv_handle: BinaryIO, delim: str
+    ) -> tuple[str, str]:
         charset = chardet.detect(csv_handle.read(100))
         dateparser_opts = {'DATE_ORDER': 'DMY'}
         csv_handle.seek(0)

@@ -35,8 +35,7 @@ def get_collection(db: AsyncIOMotorClient, collection_name: str):
     decimal_codec = DecimalCodec()
     type_registry = TypeRegistry([decimal_codec], fallback_encoder=fallback_encoder)
     codec_options = CodecOptions(type_registry=type_registry)
-    coll = db[config.DATABASE_NAME].get_collection(collection_name,
-                                                   codec_options=codec_options)
+    coll = db[config.DATABASE_NAME].get_collection(collection_name, codec_options=codec_options)
     return coll
 
 
@@ -46,12 +45,15 @@ class CRUDBase(Generic[InCls, DbCls]):
         self.incls = incls
         self.dbcls = dbcls
 
-    async def get_by_id(self, db: AsyncIOMotorClient, by_id: str) -> DbCls | None:
+    async def get_by_id(self, db: AsyncIOMotorClient, by_id: str, owner_id: str | None = None) -> DbCls | None:
         try:
             object_id = bson.ObjectId(by_id)
         except:
             return None
-        res = await get_collection(db, self.collection).find_one({'_id': object_id})
+        if owner_id is not None:
+            res = await get_collection(db, self.collection).find_one({'_id': object_id, 'owner_id': owner_id})
+        else:
+            res = await get_collection(db, self.collection).find_one({'_id': object_id})
         if res:
             res['id'] = str(res['_id'])
             return self.dbcls(**res)
@@ -64,22 +66,34 @@ class CRUDBase(Generic[InCls, DbCls]):
             return self.dbcls(**res)
         return None
 
-    async def list(self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0) -> list[DbCls]:
+    async def list(
+        self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0, owner_id: str | None = None
+    ) -> list[DbCls]:
         result: list[CarInDb] = []
-        items = get_collection(db, self.collection).find(limit=limit, skip=offset)
+        if not owner_id:
+            items = get_collection(db, self.collection).find(limit=limit, skip=offset)
+        else:
+            items = get_collection(db, self.collection).find({'owner_id': owner_id}, limit=limit, skip=offset)
         async for item in items:
             item['id'] = str(item['_id'])
             result.append(self.dbcls(**item))
         return result
 
-    async def create(self, db: AsyncIOMotorClient, new_item: InCls) -> DbCls:
+    async def create(self, db: AsyncIOMotorClient, new_item: InCls, owner_id: str | None = None) -> DbCls:
         doc = new_item.model_dump()
+        if owner_id:
+            doc['owner_id'] = owner_id
         collection = get_collection(db, self.collection)
         result = await collection.insert_one(doc)
         return await self.get_by_id(db, result.inserted_id)
 
-    async def delete_by_id(self, db: AsyncIOMotorClient, by_id: str) -> bool:
-        res = await get_collection(db, self.collection).delete_one({'_id': by_id})
+    async def delete_by_id(self, db: AsyncIOMotorClient, by_id: str, owner_id: str | None = None) -> bool:
+        if owner_id is not None:
+            res = await get_collection(db, self.collection).delete_one(
+                {'_id': bson.ObjectId(by_id), 'owner_id': owner_id}
+            )
+        else:
+            res = await get_collection(db, self.collection).delete_one({'_id': bson.ObjectId(by_id)})
         return res.deleted_count > 0
 
     async def update_by_id(self, db: AsyncIOMotorClient, by_id: str, new_item: InCls) -> DbCls | None:

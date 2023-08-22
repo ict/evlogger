@@ -9,8 +9,8 @@ config = Config(BASE_DIR / ".env")
 
 MONGODB_URL = config("MONGODB_URL", str)
 
-API_USERNAME = config("API_USERNAME", str)
-API_PASSWORD = config("API_PASSWORD", str)
+# API_USERNAME = config("API_USERNAME", str)
+# API_PASSWORD = config("API_PASSWORD", str)
 
 # Auth configs.
 API_SECRET_KEY = config("API_SECRET_KEY", str)

@@ -23,7 +23,7 @@ def test_unauthenticated_list(test_app):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-def test_authenticated_create_list(test_app):
+def test_authenticated_crud(test_app):
     token = register_and_login(test_app, 'admin')
     # get cars
     response = test_app.get("/car", headers={"Authorization": f"Bearer {token}"})
@@ -72,3 +72,37 @@ def test_authenticated_create_list(test_app):
     # check for IDOR
     response = test_app.get(f"/car/{car_id}", headers={"Authorization": f"Bearer {token2}"})
     assert response.status_code == 404, response.content
+
+    # update car
+    carmodel.name = "Admin Car 2"
+    carmodel.color = '#000000'
+    response = test_app.put(
+        f"/car/{car_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": carmodel.name, "make": carmodel.make, "model": carmodel.model, "color": '#000000'},
+    )
+    assert response.status_code == 200, response.content
+    response_data = response.json()
+    assert response_data['name'] == carmodel.name
+    assert response_data['color'] == str(carmodel.color) or response_data['color'] == 'black'
+
+    # make sure it's also saved
+    response = test_app.get(f"/car/{car_id}", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200, response.content
+    response_data = response.json()
+    assert response_data['name'] == carmodel.name
+    assert response_data['color'] == str(carmodel.color) or response_data['color'] == 'black'
+
+    # try deleting with another account
+    response = test_app.delete(f"/car/{car_id}", headers={"Authorization": f"Bearer {token2}"})
+    assert response.status_code == 404, response.content
+
+    # delete car
+    response = test_app.delete(f"/car/{car_id}", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 204, response.content
+
+    # check it is deleted from the listing
+    response = test_app.get("/car", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200, response.content
+    response_data = response.json()
+    assert response_data == []

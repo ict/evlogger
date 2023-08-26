@@ -59,8 +59,13 @@ class CRUDBase(Generic[InCls, DbCls]):
             return self.dbcls(**res)
         return None
 
-    async def get_by_property(self, db: AsyncIOMotorClient, property_name: str, property_value: str) -> DbCls | None:
-        res = await get_collection(db, self.collection).find_one({property_name: property_value})
+    async def get_by_property(
+        self, db: AsyncIOMotorClient, property_name: str, property_value: str, owner_id: str | None = None
+    ) -> DbCls | None:
+        find_filter = {property_name: property_value}
+        if owner_id is not None:
+            find_filter['owner_id'] = owner_id
+        res = await get_collection(db, self.collection).find_one(find_filter)
         if res:
             res['id'] = str(res['_id'])
             return self.dbcls(**res)
@@ -96,10 +101,12 @@ class CRUDBase(Generic[InCls, DbCls]):
             res = await get_collection(db, self.collection).delete_one({'_id': bson.ObjectId(by_id)})
         return res.deleted_count > 0
 
-    async def update_by_id(self, db: AsyncIOMotorClient, by_id: str, new_item: InCls) -> DbCls | None:
+    async def update_by_id(
+        self, db: AsyncIOMotorClient, by_id: str, new_item: InCls, owner_id: str | None = None
+    ) -> DbCls | None:
         update_data = new_item.model_dump(exclude_defaults=True, exclude_unset=True)
         old_item = await self.get_by_id(db, by_id)
-        if not old_item:
+        if not old_item or (owner_id and old_item.owner_id != owner_id):
             return None
         item_data = old_item.model_dump()
         item_data.update(update_data)

@@ -14,7 +14,7 @@ DBDepend = Depends(get_database)
 UserDepends = Depends(get_current_active_user)
 
 
-@router.get('/car', tags=['Cars'])
+@router.get('/')
 async def list_cars(
     limit: int = 20, offset: int = 0, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends
 ) -> list[CarInDb]:
@@ -22,12 +22,12 @@ async def list_cars(
     return cars
 
 
-@router.post('/car', tags=['Cars'])
+@router.post('/')
 async def create_car(car: Car, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> CarInDb:
     return await CarCRUD.create(db, car, str(user.id))
 
 
-@router.get('/car/{id}', tags=['Cars'])
+@router.get('/{id}')
 async def get_car_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> CarInDb:
     car = await CarCRUD.get_by_id(db, id, str(user.id))
     if not car:
@@ -35,7 +35,7 @@ async def get_car_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserIn
     return car
 
 
-@router.delete('/car/{id}', status_code=HTTP_204_NO_CONTENT, tags=['Cars'])
+@router.delete('/{id}', status_code=HTTP_204_NO_CONTENT)
 async def delete_car_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends):
     success = await CarCRUD.delete_by_id(db, id, str(user.id))
     if not success:
@@ -43,9 +43,11 @@ async def delete_car_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: Use
     return None
 
 
-@router.put('/car/{id}', tags=['Cars'])
-async def update_car_by_id(id: str, car: Car, db: AsyncIOMotorClient = DBDepend) -> CarInDb:
-    new_car = await CarCRUD.update_by_id(db, id, car)
+@router.put('/{id}')
+async def update_car_by_id(
+    id: str, car: Car, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends
+) -> CarInDb:
+    new_car = await CarCRUD.update_by_id(db, id, car, user.id)
     if not new_car:
         raise HTTPException(404, "Not found")
     return new_car

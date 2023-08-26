@@ -97,6 +97,14 @@ def test_authenticated_crud(test_app):
     response = test_app.delete(f"/car/{car_id}", headers={"Authorization": f"Bearer {token2}"})
     assert response.status_code == 404, response.content
 
+    # try changing with another account
+    response = test_app.put(
+        f"/car/{car_id}",
+        headers={"Authorization": f"Bearer {token2}"},
+        json={"name": "Now my car", "make": carmodel.make, "model": carmodel.model, "color": '#000000'},
+    )
+    assert response.status_code == 404, response.content
+
     # delete car
     response = test_app.delete(f"/car/{car_id}", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 204, response.content

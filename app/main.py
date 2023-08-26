@@ -27,7 +27,7 @@ app.add_event_handler("shutdown", close_mongo_connection)
 
 app.include_router(car_router, prefix="/car", tags=["Cars"])
 app.include_router(cpo_router, prefix="/cpo", tags=["CPOs"])
-app.include_router(charge_router)
+app.include_router(charge_router, prefix="/charge", tags=["Charging"])
 app.include_router(user_router)
 
 if __name__ == "__main__":

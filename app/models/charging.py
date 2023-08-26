@@ -53,4 +53,5 @@ class Charge(BaseModel):
 
 
 class ChargeInDb(Charge, DbIdMixin):
+    owner_id: str
     pass

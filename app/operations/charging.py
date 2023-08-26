@@ -17,7 +17,7 @@ from app.operations.crud_base import CRUDBase, get_collection, CPOCrud
 from app.util.timeparse import timeparse
 
 
-async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
+async def _check_references(db: AsyncIOMotorClient, item: Charge, owner_id: str) -> None:
     """
     Checks the "foreign keys" of the entity and fills optional (denormalized) fields
     """
@@ -27,7 +27,9 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
         raise ValueError(f"car_id '{item.car_id}' invalid")
     car = await get_collection(db, COLLECTION_CARS).find_one({'_id': car_id})
     if not car:
-        raise ValueError(f"car_id '{item.car_id}' does not exist")
+        raise ValueError(f"car_id '{item.car_id}' is invalid")
+    if car.get('owner_id', None) != owner_id:
+        raise ValueError(f"car_id '{item.car_id}' is invalid")
     item.car_name = car.get('name', '')
 
     try:
@@ -36,7 +38,9 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge) -> None:
         raise ValueError(f"cpo_id '{item.cpo_id}' invalid")
     cpo = await get_collection(db, COLLECTION_CPOS).find_one({'_id': cpo_id})
     if not cpo:
-        raise ValueError(f"cpo_id '{item.cpo_id}' does not exist")
+        raise ValueError(f"cpo_id '{item.cpo_id}' is invalid")
+    if cpo.get('owner_id', None) != owner_id:
+        raise ValueError(f"cpo_id '{item.cpo_id}' is invalid")
     item.cpo_name = cpo.get('name', '')
 
     if item.price_total is None:
@@ -47,20 +51,23 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
     def __init__(self, collection_name: str):
         super().__init__(collection_name, Charge, ChargeInDb)
 
-    async def create(self, db: AsyncIOMotorClient, item: Charge) -> ChargeInDb:
-        await _check_references(db, item)  # raises on errors
-        return await super().create(db, item)
+    async def create(self, db: AsyncIOMotorClient, item: Charge, owner_id: str | None = None) -> ChargeInDb:
+        await _check_references(db, item, owner_id)  # raises on errors
+        return await super().create(db, item, owner_id)
 
     async def list(
         self,
         db: AsyncIOMotorClient,
         limit: int = 20,
         offset: int = 0,
+        owner_id: str | None = None,
         timespan: str = None,
         from_date: datetime = None,
         to_date: datetime = None,
     ) -> list[ChargeInDb]:
         filters = {}
+        if owner_id is not None:
+            filters["owner_id"] = owner_id
         if timespan:
             filters["date"] = {}
             if to_date or from_date:
@@ -78,7 +85,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
             if filters.get("date", None) is None:
                 filters["date"] = {}
             filters["date"]["$lte"] = to_date
-        sort = [('date', -1)]
+        sort = [('date', 1)]
         entries = get_collection(db, self.collection).find(filters, limit=limit, skip=offset, sort=sort)
         results: list[ChargeInDb] = []
         async for entry in entries:
@@ -86,15 +93,19 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
             results.append(ChargeInDb(**entry))
         return results
 
-    async def update_by_id(self, db: AsyncIOMotorClient, by_id: str, new_item: Charge) -> ChargeInDb | None:
+    async def update_by_id(
+        self, db: AsyncIOMotorClient, by_id: str, new_item: Charge, owner_id: str | None = None
+    ) -> ChargeInDb | None:
         update_data = new_item.model_dump()
         old_item = await self.get_by_id(db, by_id)
         if not old_item:
             return None
+        if owner_id and old_item.owner_id != owner_id:
+            return None
         item_data = old_item.model_dump()
         item_data.update(update_data)
         check_item = Charge(**item_data)
-        await _check_references(db, check_item)
+        await _check_references(db, check_item, owner_id)
         await get_collection(db, self.collection).update_one(
             {'_id': bson.ObjectId(by_id)}, {'$set': check_item.model_dump()}
         )

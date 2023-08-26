@@ -20,3 +20,17 @@ def test_app():
         # Trigger startup event that should connect to the database
         yield c
     mock.close()
+
+
+def register_and_login(test_app, username):
+    # register the user
+    response = test_app.post("/users/register", json={"username": username, "password": username})
+    assert response.status_code == 200, response.content
+
+    # get auth token
+    response = test_app.post("/users/token", data={"username": username, "password": username})
+    assert response.status_code == 200, response.content
+    response_data = response.json()
+    token = response_data['access_token']
+    assert token
+    return token

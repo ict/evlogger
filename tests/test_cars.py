@@ -38,7 +38,7 @@ def test_authenticated_crud(test_app):
         headers={"Authorization": f"Bearer {token}"},
         json={"name": carmodel.name, "make": carmodel.make, "model": carmodel.model, "color": '#ffffff'},
     )
-    assert response.status_code == 200, response.content
+    assert response.status_code == 201, response.content
     response_data = response.json()
     assert response_data['name'] == carmodel.name
     assert response_data['make'] == carmodel.make

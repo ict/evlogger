@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
-from starlette.status import HTTP_204_NO_CONTENT
+from starlette.status import HTTP_204_NO_CONTENT, HTTP_201_CREATED
 
 from app.core.db import AsyncIOMotorClient, get_database
 from app.models.charging import CarInDb, Car
@@ -22,7 +22,7 @@ async def list_cars(
     return cars
 
 
-@router.post('/')
+@router.post('/', status_code=HTTP_201_CREATED)
 async def create_car(car: Car, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> CarInDb:
     return await CarCRUD.create(db, car, str(user.id))
 

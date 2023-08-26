@@ -25,6 +25,7 @@ class CPO(BaseModel):
 
 
 class CPOInDb(CPO, DbIdMixin):
+    owner_id: str
     pass
 
 

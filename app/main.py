@@ -26,7 +26,7 @@ app.add_event_handler("startup", connect_to_mongo)
 app.add_event_handler("shutdown", close_mongo_connection)
 
 app.include_router(car_router, prefix="/car", tags=["Cars"])
-app.include_router(cpo_router)
+app.include_router(cpo_router, prefix="/cpo", tags=["CPOs"])
 app.include_router(charge_router)
 app.include_router(user_router)
 

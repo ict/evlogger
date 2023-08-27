@@ -86,7 +86,11 @@ async def car_from_id(car_id: str, db: AsyncIOMotorClient = DBDepend) -> CarInDb
 
 @router.post('/csv_import')
 async def csv_import(
-    csv_file: UploadFile, car: CarInDb = Depends(car_from_id), delimimiter: str = ',', db: AsyncIOMotorClient = DBDepend
+    csv_file: UploadFile,
+    car: CarInDb = Depends(car_from_id),
+    delimimiter: str = ',',
+    db: AsyncIOMotorClient = DBDepend,
+    user: UserInDb = UserDepends,
 ) -> SimpleActionResult:
-    status, msg = await ChargeCrudOp.csv_import(db, car, csv_file.file, delim=delimimiter)
+    status, msg = await ChargeCrudOp.csv_import(db, car, user.id, csv_file.file, delim=delimimiter)
     return SimpleActionResult(result=status, message=msg)

@@ -112,7 +112,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         return await self.get_by_id(db, by_id)
 
     async def csv_import(
-        self, db: AsyncIOMotorClient, car: CarInDb, csv_handle: BinaryIO, delim: str
+        self, db: AsyncIOMotorClient, car: CarInDb, owner_id: str, csv_handle: BinaryIO, delim: str
     ) -> tuple[str, str]:
         charset = chardet.detect(csv_handle.read(100))
         dateparser_opts = {'DATE_ORDER': 'DMY'}
@@ -170,7 +170,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                     logs.append(f"Line {entry_no}: \"{cpo_name}\": invalid cpo name")
                     errors = True
                     continue
-                cpo = await CPOCrud.get_by_property(db, "name", cpo_name)
+                cpo = await CPOCrud.get_by_property(db, "name", cpo_name, owner_id)
                 if not cpo:
                     logs.append(f"Line {entry_no}: Creating new CPO for \"{cpo_name}\"")
                     # infer default price from entry
@@ -179,7 +179,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                     else:
                         default_price = 0
                     cpo_obj = CPO(name=cpo_name, default_price=default_price)
-                    cpo = await CPOCrud.create(db, cpo_obj)
+                    cpo = await CPOCrud.create(db, cpo_obj, owner_id)
                 line['cpo_id'] = cpo.id
 
             date_str = line['date']
@@ -199,7 +199,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                 logs.append(f"Line {entry_no}: {str(err)}")
                 continue
             try:
-                charge = await ChargeCrudOp.create(db, charge_obj)
+                charge = await ChargeCrudOp.create(db, charge_obj, owner_id)
                 logs.append(f"Line {entry_no}: Created Charge {charge.id}")
             except ValueError as err:
                 errors = True

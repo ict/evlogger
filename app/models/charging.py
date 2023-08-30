@@ -1,7 +1,7 @@
 import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field, computed_field, model_validator
 from pydantic_extra_types.color import Color
 
 from app.models.helpers import DbIdMixin
@@ -12,6 +12,8 @@ class Car(BaseModel):
     make: str | None = None
     model: str | None = None
     color: Color = "black"
+    odometer: int = 0
+    battery_capacity: int = Field(..., description="Battery capacity in kWh")
 
 
 class CarInDb(Car, DbIdMixin):
@@ -38,7 +40,9 @@ class Charge(BaseModel):
     date: datetime.datetime
     car_id: str
     car_name: str | None = None
-    car_km: int
+    car_odometer: int | None = None
+    car_km_driven: int | None = None
+    car_soc_after: int = Field(..., description="SoC of battery after charge", ge=0, le=100)
     kwh_charged: int | None = Field(..., description="Amount of kWh charged in 1/100s of a kWh")
     cpo_id: str
     cpo_name: str | None = None
@@ -46,9 +50,18 @@ class Charge(BaseModel):
     charge_type: ChargeTypeEnum = Field(..., description="The type of charge, either AC (Wallbox, Wallplug) or DC")
     note: str | None = None
 
+    @model_validator(mode='after')
+    def validate_km(self):
+        """One of the two values should be set"""
+        if self.car_odometer is None and self.car_km_driven is None:
+            raise ValueError('Either car_odometer or car_km_driven must be set')
+        return self
+
     @computed_field
     @property
     def price_per_kwh(self) -> int:
+        if self.price_total is None:
+            return 0
         return int(round(self.price_total / (self.kwh_charged / 100)))
 
 

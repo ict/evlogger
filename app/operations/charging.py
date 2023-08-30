@@ -10,7 +10,7 @@ import dateparser
 from pydantic import ValidationError
 
 import app.core
-from app.core.config import COLLECTION_CARS, COLLECTION_CPOS
+from app.core.config import COLLECTION_CARS, COLLECTION_CPOS, COLLECTION_CHARGES
 from app.core.db import AsyncIOMotorClient
 from app.models.charging import Charge, ChargeInDb, CarInDb, CPO
 from app.operations.crud_base import CRUDBase, get_collection, CPOCrud
@@ -45,6 +45,20 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge, owner_id: str)
 
     if item.price_total is None:
         item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
+
+    # check if this charge is newer than the last one
+    last_charge = await get_collection(db, COLLECTION_CHARGES).find_one({'car_id': car_id}, sort=[('date', 1)], limit=1)
+    if last_charge:
+        if item.date < last_charge['date']:
+            raise ValueError(f"Charging date ({item.date}) is older than last charge date: {last_charge['date']}")
+
+    if item.car_odometer is None:
+        item.car_odometer = car.get('odometer', 0) + item.car_km_driven
+    elif item.car_km_driven is None:
+        item.car_km_driven = item.car_odometer - car.get('odometer', 0)
+
+    # everything seems to be fine, also update the car
+    await get_collection(db, COLLECTION_CARS).update_one({'_id': car_id}, {'$set': {'odometer': item.car_odometer}})
 
 
 class ChargeCrud(CRUDBase[Charge, ChargeInDb]):

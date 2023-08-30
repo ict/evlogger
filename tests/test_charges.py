@@ -11,15 +11,21 @@ def test_unauthenticated_list(test_app):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-def test_time_based_list(test_app):
+def test_multiple_charges_and_list(test_app):
     token = register_and_login(test_app, 'myuser')
 
     # create car and cpo for testing
-    car_model = Car(name="Admin Car", make="Tesla", model="Model S", color='#ffffff')
+    car_model = Car(name="Admin Car", make="Tesla", model="Model S", color='#ffffff', battery_capacity=90)
     response = test_app.post(
         "/car",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": car_model.name, "make": car_model.make, "model": car_model.model, "color": '#ffffff'},
+        json={
+            "name": car_model.name,
+            "make": car_model.make,
+            "model": car_model.model,
+            "color": '#ffffff',
+            "battery_capacity": car_model.battery_capacity,
+        },
     )
     assert response.status_code == 201, response.content
     response_data = response.json()
@@ -31,34 +37,37 @@ def test_time_based_list(test_app):
     response_data = response.json()
     my_cpo = CPOInDb(**response_data)
 
-    # create different charges at different times (randomly)
+    # create different charges at different times
     dates = [
-        datetime.now(),
-        datetime.now() - timedelta(days=1) + timedelta(hours=1),
         datetime.now() - timedelta(days=365) + timedelta(hours=1),
         datetime.now() - timedelta(days=30) + timedelta(hours=1),
         datetime.now() - timedelta(days=9) + timedelta(hours=1),
+        datetime.now() - timedelta(days=1) + timedelta(hours=1),
+        datetime.now(),
     ]
     for i, date in enumerate(dates):
-        charge_model = Charge(
-            date=date,
-            car_id=my_car.id,
-            cpo_id=my_cpo.id,
-            car_km=200 * (i + 1),
-            kwh_charged=1500,
-            charge_type='AC',
-        )
+        if i % 2 == 0:
+            charge_model = Charge(
+                date=date,
+                car_id=my_car.id,
+                car_soc_after=90,
+                car_odometer=200 * (i + 1),
+                cpo_id=my_cpo.id,
+                kwh_charged=1500,
+                charge_type='AC',
+            )
+        else:
+            charge_model = Charge(
+                date=date,
+                car_id=my_car.id,
+                car_soc_after=90,
+                car_km_driven=200,
+                cpo_id=my_cpo.id,
+                kwh_charged=1500,
+                charge_type='AC',
+            )
         response = test_app.post(
-            "/charge",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "date": charge_model.date.isoformat(),
-                "car_id": charge_model.car_id,
-                "cpo_id": charge_model.cpo_id,
-                "car_km": charge_model.car_km,
-                "kwh_charged": charge_model.kwh_charged,
-                "charge_type": charge_model.charge_type,
-            },  # cannot use model_dump() here because of computed fields that cause errors on unfilled model
+            "/charge", headers={"Authorization": f"Bearer {token}"}, json=charge_model.model_dump(mode='json')
         )
         assert response.status_code == 201, response.content
 
@@ -67,6 +76,15 @@ def test_time_based_list(test_app):
     assert response.status_code == 200, response.content
     response_data = response.json()
     assert len(response_data) == len(dates)
+    expected_km = 200
+    for charge in response_data:
+        assert charge['car_odometer'] == expected_km
+        expected_km += 200
+
+    # check if the global car odometer is updated
+    response = test_app.get(f"/car/{my_car.id}", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200, response.content
+    assert response.json()['odometer'] == expected_km - 200
 
     # check if charges are sorted by date, newest first
     dates.sort(reverse=True)
@@ -111,11 +129,17 @@ def test_authenticated_crud(test_app):
     token = register_and_login(test_app, 'admin')
 
     # create a car and cpo for testing
-    car_model = Car(name="Admin Car", make="Tesla", model="Model S", color='#ffffff')
+    car_model = Car(name="Admin Car", make="Tesla", model="Model S", color='#ffffff', battery_capacity=90)
     response = test_app.post(
         "/car",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": car_model.name, "make": car_model.make, "model": car_model.model, "color": '#ffffff'},
+        json={
+            "name": car_model.name,
+            "make": car_model.make,
+            "model": car_model.model,
+            "color": '#ffffff',
+            "battery_capacity": car_model.battery_capacity,
+        },
     )
     assert response.status_code == 201, response.content
     response_data = response.json()
@@ -138,7 +162,8 @@ def test_authenticated_crud(test_app):
         date=datetime(2020, 1, 1, 14, 00),
         car_id=my_car.id,
         cpo_id=my_cpo.id,
-        car_km=200,
+        car_odometer=200,
+        car_soc_after=90,
         kwh_charged=1500,
         charge_type='AC',
     )
@@ -149,7 +174,8 @@ def test_authenticated_crud(test_app):
             "date": charge_model.date.isoformat(),
             "car_id": charge_model.car_id,
             "cpo_id": charge_model.cpo_id,
-            "car_km": charge_model.car_km,
+            "car_odometer": charge_model.car_odometer,
+            "car_soc_after": charge_model.car_soc_after,
             "kwh_charged": charge_model.kwh_charged,
             "charge_type": charge_model.charge_type,
         },  # cannot use model_dump() here because of computed fields that cause errors on unfilled model
@@ -160,7 +186,8 @@ def test_authenticated_crud(test_app):
     assert response_data['date'] == charge_model.date.isoformat()
     assert response_data['car_id'] == charge_model.car_id
     assert response_data['cpo_id'] == charge_model.cpo_id
-    assert response_data['car_km'] == charge_model.car_km
+    assert response_data['car_odometer'] == charge_model.car_odometer
+    assert response_data['car_soc_after'] == charge_model.car_soc_after
     assert response_data['kwh_charged'] == charge_model.kwh_charged
     assert response_data['charge_type'] == charge_model.charge_type
     assert response_data['price_total'] == expected_price
@@ -178,7 +205,7 @@ def test_authenticated_crud(test_app):
             "date": charge_model.date.isoformat(),
             "car_id": "123456789012345678901234",
             "cpo_id": charge_model.cpo_id,
-            "car_km": charge_model.car_km,
+            "car_odometer": charge_model.car_odometer,
             "kwh_charged": charge_model.kwh_charged,
             "charge_type": charge_model.charge_type,
         },
@@ -193,7 +220,7 @@ def test_authenticated_crud(test_app):
             "date": charge_model.date.isoformat(),
             "car_id": charge_model.car_id,
             "cpo_id": "123456789012345678901234",
-            "car_km": charge_model.car_km,
+            "car_odometer": charge_model.car_odometer,
             "kwh_charged": charge_model.kwh_charged,
             "charge_type": charge_model.charge_type,
         },
@@ -205,7 +232,7 @@ def test_authenticated_crud(test_app):
     response = test_app.post(
         "/car",
         headers={"Authorization": f"Bearer {token2}"},
-        json={"name": "User Car", "make": "Fiat", "model": "Multipla", "color": 'blue'},
+        json={"name": "User Car", "make": "Fiat", "model": "Multipla", "color": 'blue', "battery_capacity": 44},
     )
     assert response.status_code == 201, response.content
     response_data = response.json()
@@ -218,7 +245,8 @@ def test_authenticated_crud(test_app):
             "date": charge_model.date.isoformat(),
             "car_id": other_car.id,
             "cpo_id": charge_model.cpo_id,
-            "car_km": charge_model.car_km,
+            "car_odometer": charge_model.car_odometer,
+            "car_soc_after": charge_model.car_soc_after,
             "kwh_charged": charge_model.kwh_charged,
             "charge_type": charge_model.charge_type,
         },
@@ -262,7 +290,8 @@ def test_authenticated_crud(test_app):
             "date": charge_model.date.isoformat(),
             "car_id": charge_model.car_id,
             "cpo_id": charge_model.cpo_id,
-            "car_km": charge_model.car_km,
+            "car_odometer": charge_model.car_odometer,
+            "car_soc_after": charge_model.car_soc_after,
             "kwh_charged": charge_model.kwh_charged,
             "charge_type": charge_model.charge_type,
             "price_total": charge_model.price_total,
@@ -292,7 +321,8 @@ def test_authenticated_crud(test_app):
             "date": charge_model.date.isoformat(),
             "car_id": charge_model.car_id,
             "cpo_id": charge_model.cpo_id,
-            "car_km": charge_model.car_km,
+            "car_odometer": charge_model.car_odometer,
+            "car_soc_after": charge_model.car_soc_after,
             "kwh_charged": charge_model.kwh_charged,
             "charge_type": charge_model.charge_type,
             "price_total": 9001,

@@ -32,11 +32,17 @@ def test_authenticated_crud(test_app):
     assert response_data == []
 
     # create car
-    carmodel = Car(name="Admin Car", make="Tesla", model="Model S", color='#ffffff')
+    carmodel = Car(name="Admin Car", make="Tesla", model="Model S", color='#ffffff', battery_capacity=90)
     response = test_app.post(
         "/car",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": carmodel.name, "make": carmodel.make, "model": carmodel.model, "color": '#ffffff'},
+        json={
+            "name": carmodel.name,
+            "make": carmodel.make,
+            "model": carmodel.model,
+            "color": '#ffffff',
+            "battery_capacity": carmodel.battery_capacity,
+        },
     )
     assert response.status_code == 201, response.content
     response_data = response.json()
@@ -79,7 +85,13 @@ def test_authenticated_crud(test_app):
     response = test_app.put(
         f"/car/{car_id}",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": carmodel.name, "make": carmodel.make, "model": carmodel.model, "color": '#000000'},
+        json={
+            "name": carmodel.name,
+            "make": carmodel.make,
+            "model": carmodel.model,
+            "color": '#000000',
+            "battery_capacity": carmodel.battery_capacity,
+        },
     )
     assert response.status_code == 200, response.content
     response_data = response.json()
@@ -101,7 +113,13 @@ def test_authenticated_crud(test_app):
     response = test_app.put(
         f"/car/{car_id}",
         headers={"Authorization": f"Bearer {token2}"},
-        json={"name": "Now my car", "make": carmodel.make, "model": carmodel.model, "color": '#000000'},
+        json={
+            "name": "Now my car",
+            "make": carmodel.make,
+            "model": carmodel.model,
+            "color": '#000000',
+            "battery_capacity": carmodel.battery_capacity,
+        },
     )
     assert response.status_code == 404, response.content
 

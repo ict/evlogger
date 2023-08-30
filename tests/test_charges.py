@@ -76,18 +76,32 @@ def test_multiple_charges_and_list(test_app):
     assert response.status_code == 200, response.content
     response_data = response.json()
     assert len(response_data) == len(dates)
-    expected_km = 200
+    expected_km = 1000
     for charge in response_data:
         assert charge['car_odometer'] == expected_km
-        expected_km += 200
+        expected_km -= 200
 
     # check if the global car odometer is updated
     response = test_app.get(f"/car/{my_car.id}", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200, response.content
-    assert response.json()['odometer'] == expected_km - 200
+    assert response.json()['odometer'] == 1000
 
-    # check if charges are sorted by date, newest first
-    dates.sort(reverse=True)
+    # check if inserting a charge with an older date than the last one fails
+    charge_model = Charge(
+        date=datetime.now() - timedelta(days=80),
+        car_id=my_car.id,
+        car_soc_after=90,
+        car_odometer=137,
+        cpo_id=my_cpo.id,
+        kwh_charged=1500,
+        charge_type='AC',
+    )
+    response = test_app.post(
+        "/charge", headers={"Authorization": f"Bearer {token}"}, json=charge_model.model_dump(mode='json')
+    )
+    assert response.status_code == 422, response.content
+
+    # check if charges are sorted by date, newest first (pop from the end)
     dates2 = dates[:]
     for charge in response_data:
         assert charge['date'][:19] == dates2.pop().isoformat()[:19]  # skip subsecond precision
@@ -109,7 +123,7 @@ def test_multiple_charges_and_list(test_app):
 
     # get charges from different timespans with from_date
     response = test_app.get(
-        f"/charge?from_date={dates[-1].isoformat()[:19]}",
+        f"/charge?from_date={dates[0].isoformat()[:19]}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200, response.content
@@ -117,7 +131,7 @@ def test_multiple_charges_and_list(test_app):
     assert len(response_data) == len(dates), response_data
 
     response = test_app.get(
-        f"/charge?from_date={dates[-1].isoformat()[:19]}&to_date={(dates[-2]+timedelta(minutes=1)).isoformat()[:19]}",
+        f"/charge?from_date={dates[0].isoformat()[:19]}&to_date={(dates[1]+timedelta(minutes=1)).isoformat()[:19]}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200, response.content

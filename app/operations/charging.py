@@ -47,7 +47,9 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge, owner_id: str)
         item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
 
     # check if this charge is newer than the last one
-    last_charge = await get_collection(db, COLLECTION_CHARGES).find_one({'car_id': car_id}, sort=[('date', 1)], limit=1)
+    last_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
+        {'car_id': item.car_id}, sort=[('date', -1)], limit=1
+    )
     if last_charge:
         if item.date < last_charge['date']:
             raise ValueError(f"Charging date ({item.date}) is older than last charge date: {last_charge['date']}")
@@ -99,7 +101,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
             if filters.get("date", None) is None:
                 filters["date"] = {}
             filters["date"]["$lte"] = to_date
-        sort = [('date', 1)]
+        sort = [('date', -1)]
         entries = get_collection(db, self.collection).find(filters, limit=limit, skip=offset, sort=sort)
         results: list[ChargeInDb] = []
         async for entry in entries:

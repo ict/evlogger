@@ -5,7 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.core.config import ALLOWED_HOSTS, PROJECT_NAME
 from app.core.db import close_mongo_connection, connect_to_mongo
 from app.routes.cars import router as car_router
-from app.routes.charges import router as charge_router
+from app.routes.charging import router as charge_router
 from app.routes.cpos import router as cpo_router
 from app.routes.users import router as user_router
 

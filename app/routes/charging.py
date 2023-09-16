@@ -77,8 +77,8 @@ async def update_charge_by_id(
     return new_charge
 
 
-async def car_from_id(car_id: str, db: AsyncIOMotorClient = DBDepend) -> CarInDb:
-    car = await CarCRUD.get_by_id(db, car_id)
+async def car_from_id(car_id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> CarInDb:
+    car = await CarCRUD.get_by_id(db, car_id, user.id)
     if not car:
         raise HTTPException(404, "Car not found")
     return car
@@ -88,9 +88,9 @@ async def car_from_id(car_id: str, db: AsyncIOMotorClient = DBDepend) -> CarInDb
 async def csv_import(
     csv_file: UploadFile,
     car: CarInDb = Depends(car_from_id),
-    delimimiter: str = ',',
+    delimiter: str = ',',
     db: AsyncIOMotorClient = DBDepend,
     user: UserInDb = UserDepends,
 ) -> SimpleActionResult:
-    status, msg = await ChargeCrudOp.csv_import(db, car, user.id, csv_file.file, delim=delimimiter)
+    status, msg = await ChargeCrudOp.csv_import(db, car, user.id, csv_file.file, delim=delimiter)
     return SimpleActionResult(result=status, message=msg)

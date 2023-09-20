@@ -42,7 +42,7 @@ class Charge(BaseModel):
     car_name: str | None = None
     car_odometer: int | None = None
     car_km_driven: int | None = None
-    car_soc_after: int = Field(..., description="SoC of battery after charge", ge=0, le=100)
+    car_soc_after: int | None = Field(None, description="SoC of battery after charge", ge=0, le=100)
     kwh_charged: int | None = Field(..., description="Amount of kWh charged in 1/100s of a kWh")
     cpo_id: str
     cpo_name: str | None = None

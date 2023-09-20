@@ -138,6 +138,20 @@ def test_multiple_charges_and_list(test_app):
     response_data = response.json()
     assert len(response_data) == 2, response_data
 
+    # Check if we can submit a charge without car_soc_after
+    charge_model = Charge(
+        date=datetime.now(),
+        car_id=my_car.id,
+        car_odometer=137,
+        cpo_id=my_cpo.id,
+        kwh_charged=1500,
+        charge_type='AC',
+    )
+    model_dump = charge_model.model_dump(mode='json')
+    del model_dump['car_soc_after']
+    response = test_app.post("/charge", headers={"Authorization": f"Bearer {token}"}, json=model_dump)
+    assert response.status_code == 201, response.content
+
 
 def test_authenticated_crud(test_app):
     token = register_and_login(test_app, 'admin')

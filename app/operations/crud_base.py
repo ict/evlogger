@@ -48,7 +48,7 @@ class CRUDBase(Generic[InCls, DbCls]):
     async def get_by_id(self, db: AsyncIOMotorClient, by_id: str, owner_id: str | None = None) -> DbCls | None:
         try:
             object_id = bson.ObjectId(by_id)
-        except:
+        except TypeError:
             return None
         if owner_id is not None:
             res = await get_collection(db, self.collection).find_one({'_id': object_id, 'owner_id': owner_id})
@@ -60,7 +60,7 @@ class CRUDBase(Generic[InCls, DbCls]):
         return None
 
     async def get_by_property(
-        self, db: AsyncIOMotorClient, property_name: str, property_value: str, owner_id: str | None = None
+            self, db: AsyncIOMotorClient, property_name: str, property_value: str, owner_id: str | None = None
     ) -> DbCls | None:
         find_filter = {property_name: property_value}
         if owner_id is not None:
@@ -72,7 +72,7 @@ class CRUDBase(Generic[InCls, DbCls]):
         return None
 
     async def list(
-        self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0, owner_id: str | None = None
+            self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0, owner_id: str | None = None
     ) -> list[DbCls]:
         result: list[CarInDb] = []
         if not owner_id:
@@ -102,7 +102,7 @@ class CRUDBase(Generic[InCls, DbCls]):
         return res.deleted_count > 0
 
     async def update_by_id(
-        self, db: AsyncIOMotorClient, by_id: str, new_item: InCls, owner_id: str | None = None
+            self, db: AsyncIOMotorClient, by_id: str, new_item: InCls, owner_id: str | None = None
     ) -> DbCls | None:
         update_data = new_item.model_dump(exclude_defaults=True, exclude_unset=True)
         old_item = await self.get_by_id(db, by_id)

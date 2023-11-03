@@ -2,8 +2,6 @@
 <project version="4">
   <component name="Black">
     <option name="cmdArguments" value="--line-length 120 --skip-string-normalization" />
-    <option name="enabledOnReformat" value="true" />
-    <option name="enabledOnSave" value="true" />
     <option name="executionMode" value="BINARY" />
     <option name="pathToExecutable" value="/usr/bin/black" />
     <option name="sdkUUID" value="eb9dfff6-1084-4181-9f66-ab144a1ce9b2" />

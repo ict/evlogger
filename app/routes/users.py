@@ -16,30 +16,30 @@ router = APIRouter()
 DBDepends = Depends(get_database)
 
 
-@router.get("/users/me", tags=['Users'])
+@router.get('/users/me', tags=['Users'])
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     return current_user
 
 
-@router.post("/users/token", response_model=Token)
+@router.post('/users/token', response_model=Token)
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: AsyncIOMotorClient = DBDepends):
     user: UserInDb = await UserCrudOp.get_by_property(db, 'username', form_data.username)
     if not user:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+        raise HTTPException(status_code=400, detail='Incorrect username or password')
     if not authenticate_user(user, form_data.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail='Incorrect username or password',
+            headers={'WWW-Authenticate': 'Bearer'},
         )
     access_token_expires = timedelta(minutes=config.API_ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token(data={'sub': user.username}, expires_delta=access_token_expires)
+    return {'access_token': access_token, 'token_type': 'bearer'}
 
 
 @router.post('/users/register', response_model=User)
 async def register(user_data: UserRegister, db: AsyncIOMotorClient = DBDepends) -> User:
-    exists_exception = HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Username or email address already in use")
+    exists_exception = HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'Username or email address already in use')
     first_user = await UserCrudOp.list(db, limit=1)
     if not first_user:
         is_admin = True

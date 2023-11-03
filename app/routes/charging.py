@@ -52,7 +52,7 @@ async def create_charge(charge: Charge, db: AsyncIOMotorClient = DBDepend, user:
 async def get_charge_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> ChargeInDb:
     charge = await ChargeCrudOp.get_by_id(db, id, user.id)
     if not charge:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return charge
 
 
@@ -60,7 +60,7 @@ async def get_charge_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: Use
 async def delete_charge_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends):
     success = await ChargeCrudOp.delete_by_id(db, id, user.id)
     if not success:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return None
 
 
@@ -73,14 +73,14 @@ async def update_charge_by_id(
     except ValueError as err:
         raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, str(err))
     if not new_charge:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return new_charge
 
 
 async def car_from_id(car_id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> CarInDb:
     car = await CarCRUD.get_by_id(db, car_id, user.id)
     if not car:
-        raise HTTPException(404, "Car not found")
+        raise HTTPException(404, 'Car not found')
     return car
 
 

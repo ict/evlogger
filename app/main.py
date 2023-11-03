@@ -12,23 +12,23 @@ from app.routes.users import router as user_router
 app = FastAPI(title=PROJECT_NAME)
 
 if not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ["*"]
+    ALLOWED_HOSTS = ['*']
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_HOSTS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
 
-app.add_event_handler("startup", connect_to_mongo)
-app.add_event_handler("shutdown", close_mongo_connection)
+app.add_event_handler('startup', connect_to_mongo)
+app.add_event_handler('shutdown', close_mongo_connection)
 
-app.include_router(car_router, prefix="/car", tags=["Cars"])
-app.include_router(cpo_router, prefix="/cpo", tags=["CPOs"])
-app.include_router(charge_router, prefix="/charge", tags=["Charging"])
+app.include_router(car_router, prefix='/car', tags=['Cars'])
+app.include_router(cpo_router, prefix='/cpo', tags=['CPOs'])
+app.include_router(charge_router, prefix='/charge', tags=['Charging'])
 app.include_router(user_router)
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+if __name__ == '__main__':
+    uvicorn.run(app, host='0.0.0.0', port=8000)

@@ -31,7 +31,7 @@ async def create_car(car: Car, db: AsyncIOMotorClient = DBDepend, user: UserInDb
 async def get_car_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> CarInDb:
     car = await CarCRUD.get_by_id(db, id, str(user.id))
     if not car:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return car
 
 
@@ -39,7 +39,7 @@ async def get_car_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserIn
 async def delete_car_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends):
     success = await CarCRUD.delete_by_id(db, id, str(user.id))
     if not success:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return None
 
 
@@ -49,5 +49,5 @@ async def update_car_by_id(
 ) -> CarInDb:
     new_car = await CarCRUD.update_by_id(db, id, car, user.id)
     if not new_car:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return new_car

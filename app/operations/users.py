@@ -5,7 +5,6 @@ from .crud_base import CRUDBase
 
 
 class UserCRUD(CRUDBase[UserWithPasswordHash, UserInDb]):
-
     def __init__(self, collection_name: str):
         super().__init__(collection_name, UserWithPasswordHash, UserInDb)
 

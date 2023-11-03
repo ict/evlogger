@@ -23,7 +23,7 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge, owner_id: str)
     """
     try:
         car_id = bson.ObjectId(item.car_id)
-    except:
+    except TypeError:
         raise ValueError(f"car_id '{item.car_id}' invalid")
     car = await get_collection(db, COLLECTION_CARS).find_one({'_id': car_id})
     if not car:
@@ -34,7 +34,7 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge, owner_id: str)
 
     try:
         cpo_id = bson.ObjectId(item.cpo_id)
-    except:
+    except TypeError:
         raise ValueError(f"cpo_id '{item.cpo_id}' invalid")
     cpo = await get_collection(db, COLLECTION_CPOS).find_one({'_id': cpo_id})
     if not cpo:
@@ -72,35 +72,35 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         return await super().create(db, item, owner_id)
 
     async def list(
-        self,
-        db: AsyncIOMotorClient,
-        limit: int = 20,
-        offset: int = 0,
-        owner_id: str | None = None,
-        timespan: str = None,
-        from_date: datetime = None,
-        to_date: datetime = None,
+            self,
+            db: AsyncIOMotorClient,
+            limit: int = 20,
+            offset: int = 0,
+            owner_id: str | None = None,
+            timespan: str = None,
+            from_date: datetime = None,
+            to_date: datetime = None,
     ) -> list[ChargeInDb]:
         filters = {}
         if owner_id is not None:
-            filters["owner_id"] = owner_id
+            filters['owner_id'] = owner_id
         if timespan:
-            filters["date"] = {}
+            filters['date'] = {}
             if to_date or from_date:
-                raise ValueError("to_date and from_date cannot be used alongside timespan")
+                raise ValueError('to_date and from_date cannot be used alongside timespan')
             timespan_seconds = timeparse(timespan)
             if not timespan_seconds:
                 raise ValueError(f"Cannot parse timespan value '{timespan}'")
             date_start = datetime.now() - timedelta(seconds=timespan_seconds)
-            filters["date"]["$gte"] = date_start
+            filters['date']['$gte'] = date_start
         if from_date:
-            if filters.get("date", None) is None:
-                filters["date"] = {}
-            filters["date"]["$gte"] = from_date
+            if filters.get('date', None) is None:
+                filters['date'] = {}
+            filters['date']['$gte'] = from_date
         if to_date:
-            if filters.get("date", None) is None:
-                filters["date"] = {}
-            filters["date"]["$lte"] = to_date
+            if filters.get('date', None) is None:
+                filters['date'] = {}
+            filters['date']['$lte'] = to_date
         sort = [('date', -1)]
         entries = get_collection(db, self.collection).find(filters, limit=limit, skip=offset, sort=sort)
         results: list[ChargeInDb] = []
@@ -110,7 +110,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         return results
 
     async def update_by_id(
-        self, db: AsyncIOMotorClient, by_id: str, new_item: Charge, owner_id: str | None = None
+            self, db: AsyncIOMotorClient, by_id: str, new_item: Charge, owner_id: str | None = None
     ) -> ChargeInDb | None:
         update_data = new_item.model_dump()
         old_item = await self.get_by_id(db, by_id)
@@ -128,7 +128,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         return await self.get_by_id(db, by_id)
 
     async def csv_import(
-        self, db: AsyncIOMotorClient, car: CarInDb, owner_id: str, csv_handle: BinaryIO, delim: str
+            self, db: AsyncIOMotorClient, car: CarInDb, owner_id: str, csv_handle: BinaryIO, delim: str
     ) -> tuple[str, str]:
         charset = chardet.detect(csv_handle.read(100))
         dateparser_opts = {'DATE_ORDER': 'DMY'}
@@ -137,9 +137,9 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         fieldnames = reader.fieldnames
         for req_field in ('date', 'kwh_charged', 'charge_type'):
             if req_field not in fieldnames:
-                return "format-error", f"Required field missing: {req_field}"
+                return 'format-error', f'Required field missing: {req_field}'
         if not any(field in fieldnames for field in ('cpo_name', 'cpo_id')):
-            return "format-error", "One of cpo_name, cpo_id is required"
+            return 'format-error', 'One of cpo_name, cpo_id is required'
         entry_no = 0
         seen_dates = set()
         logs = []
@@ -149,10 +149,11 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
 
         for line in reader:
             entry_no += 1
+            charged_str = line.get('kwh_charged')
             try:
-                charged = float(no_number.sub("", line.get('kwh_charged')))
-            except ValueError as err:
-                logs.append(f"Line {entry_no}: invalid kwh_charged value: {charged}")
+                charged = float(no_number.sub('', charged_str))
+            except ValueError:
+                logs.append(f'Line {entry_no}: invalid kwh_charged value: {charged_str}')
                 errors = True
                 continue
             if charged < 100:
@@ -165,9 +166,9 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
             price_str = line.get('price_total')
             if price_str is not None:
                 try:
-                    price = float(no_number.sub("", price_str))
-                except ValueError as err:
-                    logs.append(f"Line {entry_no}: invalid price_total value: {price_str}")
+                    price = float(no_number.sub('', price_str))
+                except ValueError:
+                    logs.append(f'Line {entry_no}: invalid price_total value: {price_str}')
                     errors = True
                     continue
                 if price < 100:
@@ -179,16 +180,16 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                 price = None
             line['price_total'] = price
 
-            if "cpo_id" not in line:
+            if 'cpo_id' not in line:
                 # For CSV import, we also allow just the name and infer the CPO, creating a new one if it does not exist
                 cpo_name = line.get('cpo_name')
                 if not cpo_name:
-                    logs.append(f"Line {entry_no}: \"{cpo_name}\": invalid cpo name")
+                    logs.append(f'Line {entry_no}: "{cpo_name}": invalid cpo name')
                     errors = True
                     continue
-                cpo = await CPOCrud.get_by_property(db, "name", cpo_name, owner_id)
+                cpo = await CPOCrud.get_by_property(db, 'name', cpo_name, owner_id)
                 if not cpo:
-                    logs.append(f"Line {entry_no}: Creating new CPO for \"{cpo_name}\"")
+                    logs.append(f'Line {entry_no}: Creating new CPO for "{cpo_name}"')
                     # infer default price from entry
                     if price is not None:
                         default_price = int(round(price / (charged / 100)))
@@ -212,18 +213,18 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                 charge_obj = Charge(**line)
             except ValidationError as err:
                 errors = True
-                logs.append(f"Line {entry_no}: {str(err)}")
+                logs.append(f'Line {entry_no}: {str(err)}')
                 continue
             try:
                 charge = await ChargeCrudOp.create(db, charge_obj, owner_id)
-                logs.append(f"Line {entry_no}: Created Charge {charge.id}")
+                logs.append(f'Line {entry_no}: Created Charge {charge.id}')
             except ValueError as err:
                 errors = True
-                logs.append(f"Line {entry_no}: {str(err)}")
+                logs.append(f'Line {entry_no}: {str(err)}')
                 continue
 
-        status = "completed (errors)" if errors else "completed"
-        return status, "\n".join(logs)
+        status = 'completed (errors)' if errors else 'completed'
+        return status, '\n'.join(logs)
 
 
 ChargeCrudOp = ChargeCrud(app.core.config.COLLECTION_CHARGES)

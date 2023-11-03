@@ -11,9 +11,9 @@ class Car(BaseModel):
     name: str
     make: str | None = None
     model: str | None = None
-    color: Color = "black"
+    color: Color = 'black'
     odometer: int = 0
-    battery_capacity: int = Field(..., description="Battery capacity in kWh")
+    battery_capacity: int = Field(..., description='Battery capacity in kWh')
 
 
 class CarInDb(Car, DbIdMixin):
@@ -23,7 +23,7 @@ class CarInDb(Car, DbIdMixin):
 
 class CPO(BaseModel):
     name: str
-    default_price: int = Field(..., description="Default price of one kWh in 1/100s of currency (e.g. cents)")
+    default_price: int = Field(..., description='Default price of one kWh in 1/100s of currency (e.g. cents)')
 
 
 class CPOInDb(CPO, DbIdMixin):
@@ -42,12 +42,12 @@ class Charge(BaseModel):
     car_name: str | None = None
     car_odometer: int | None = None
     car_km_driven: int | None = None
-    car_soc_after: int | None = Field(None, description="SoC of battery after charge", ge=0, le=100)
-    kwh_charged: int | None = Field(..., description="Amount of kWh charged in 1/100s of a kWh")
+    car_soc_after: int | None = Field(None, description='SoC of battery after charge', ge=0, le=100)
+    kwh_charged: int | None = Field(..., description='Amount of kWh charged in 1/100s of a kWh')
     cpo_id: str
     cpo_name: str | None = None
-    price_total: int | None = Field(description="Total amount paid in 1/100s of currency (e.g. cents)", default=None)
-    charge_type: ChargeTypeEnum = Field(..., description="The type of charge, either AC (Wallbox, Wallplug) or DC")
+    price_total: int | None = Field(description='Total amount paid in 1/100s of currency (e.g. cents)', default=None)
+    charge_type: ChargeTypeEnum = Field(..., description='The type of charge, either AC (Wallbox, Wallplug) or DC')
     note: str | None = None
 
     @model_validator(mode='after')

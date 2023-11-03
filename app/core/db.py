@@ -16,12 +16,12 @@ async def get_database() -> AsyncIOMotorClient:
 
 
 async def connect_to_mongo():
-    logger.info("Connecting to MongoDB...")
+    logger.info('Connecting to MongoDB...')
     db.client = AsyncIOMotorClient(str(MONGODB_URL))
-    logger.info("Connected to MongoDB")
+    logger.info('Connected to MongoDB')
 
 
 async def close_mongo_connection():
-    logger.info("Closing MongoDB connection...")
+    logger.info('Closing MongoDB connection...')
     db.client.close()
-    logger.info("MongoDB connection closed")
+    logger.info('MongoDB connection closed')

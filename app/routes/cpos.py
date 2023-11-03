@@ -31,7 +31,7 @@ async def create_cpo(cpo: CPO, db: AsyncIOMotorClient = DBDepend, user: UserInDb
 async def get_cpo_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> CPOInDb:
     car = await CPOCrud.get_by_id(db, id, user.id)
     if not car:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return car
 
 
@@ -39,7 +39,7 @@ async def get_cpo_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserIn
 async def delete_cpo_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends):
     success = await CPOCrud.delete_by_id(db, id, user.id)
     if not success:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return None
 
 
@@ -49,5 +49,5 @@ async def update_cpo_by_id(
 ) -> CPOInDb:
     new_car = await CPOCrud.update_by_id(db, id, cpo, user.id)
     if not new_car:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, 'Not found')
     return new_car

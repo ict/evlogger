@@ -6,7 +6,7 @@ from app.core import config
 from app.main import app
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def test_app():
     """
     This will setup a test client, but will NOT call the startup and shutdown events,
@@ -24,11 +24,11 @@ def test_app():
 
 def register_and_login(test_app, username):
     # register the user
-    response = test_app.post("/users/register", json={"username": username, "password": username})
+    response = test_app.post('/users/register', json={'username': username, 'password': username})
     assert response.status_code == 200, response.content
 
     # get auth token
-    response = test_app.post("/users/token", data={"username": username, "password": username})
+    response = test_app.post('/users/token', data={'username': username, 'password': username})
     assert response.status_code == 200, response.content
     response_data = response.json()
     token = response_data['access_token']

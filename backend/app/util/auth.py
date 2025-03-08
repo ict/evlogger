@@ -1,15 +1,15 @@
-from datetime import timedelta, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from starlette import status
 
 from app.core import config
 from app.core.db import AsyncIOMotorClient, get_database
-from app.models.users import User, UserInDb, TokenData
+from app.models.users import TokenData, User, UserInDb
 from app.operations.users import UserCrudOp
 
 SECRET_KEY = config.API_SECRET_KEY
@@ -38,9 +38,9 @@ def authenticate_user(user: UserInDb, password: str) -> bool:
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({'exp': expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt

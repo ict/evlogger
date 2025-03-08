@@ -1,0 +1,19 @@
+min_version = "2024.9.5"
+
+[env]
+# Use the project name derived from the current directory
+PROJECT_NAME = "chargelogger-frontend"
+
+# Automatic virtualenv activation
+_.python.venv = { path = ".venv" }
+
+[tasks.run]
+description = "Run the application"
+run = "streamlit run main.py"
+
+[tasks.info]
+description = "Print project information"
+run = '''
+echo "Project: $PROJECT_NAME"
+echo "Virtual Environment: $VIRTUAL_ENV"
+'''

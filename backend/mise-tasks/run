@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run the project and the database, reset already running"
+
+docker compose -f docker/docker-compose.yml down -v
+docker compose -f docker/docker-compose.yml up -d --force-recreate 

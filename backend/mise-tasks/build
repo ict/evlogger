@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Build the docker container and tag it locally"
+
+docker build -t ${PROJECT_NAME}:dev -f docker/Dockerfile .

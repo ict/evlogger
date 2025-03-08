@@ -10,10 +10,10 @@ import dateparser
 from pydantic import ValidationError
 
 import app.core
-from app.core.config import COLLECTION_CARS, COLLECTION_CPOS, COLLECTION_CHARGES
+from app.core.config import COLLECTION_CARS, COLLECTION_CHARGES, COLLECTION_CPOS
 from app.core.db import AsyncIOMotorClient
-from app.models.charging import Charge, ChargeInDb, CarInDb, CPO
-from app.operations.crud_base import CRUDBase, get_collection, CPOCrud
+from app.models.charging import CPO, CarInDb, Charge, ChargeInDb
+from app.operations.crud_base import CPOCrud, CRUDBase, get_collection
 from app.util.timeparse import timeparse
 
 
@@ -52,7 +52,7 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge, owner_id: str)
     )
     if last_charge:
         if item.date < last_charge['date']:
-            raise ValueError(f"Charging date ({item.date}) is older than last charge date: {last_charge['date']}")
+            raise ValueError(f'Charging date ({item.date}) is older than last charge date: {last_charge["date"]}')
 
     if item.car_odometer is None:
         item.car_odometer = car.get('odometer', 0) + item.car_km_driven
@@ -72,14 +72,14 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         return await super().create(db, item, owner_id)
 
     async def list(
-            self,
-            db: AsyncIOMotorClient,
-            limit: int = 20,
-            offset: int = 0,
-            owner_id: str | None = None,
-            timespan: str = None,
-            from_date: datetime = None,
-            to_date: datetime = None,
+        self,
+        db: AsyncIOMotorClient,
+        limit: int = 20,
+        offset: int = 0,
+        owner_id: str | None = None,
+        timespan: str = None,
+        from_date: datetime = None,
+        to_date: datetime = None,
     ) -> list[ChargeInDb]:
         filters = {}
         if owner_id is not None:
@@ -110,7 +110,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         return results
 
     async def update_by_id(
-            self, db: AsyncIOMotorClient, by_id: str, new_item: Charge, owner_id: str | None = None
+        self, db: AsyncIOMotorClient, by_id: str, new_item: Charge, owner_id: str | None = None
     ) -> ChargeInDb | None:
         update_data = new_item.model_dump()
         old_item = await self.get_by_id(db, by_id)
@@ -128,13 +128,13 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         return await self.get_by_id(db, by_id)
 
     async def csv_import(
-            self, db: AsyncIOMotorClient, car: CarInDb, owner_id: str, csv_handle: BinaryIO, delim: str
+        self, db: AsyncIOMotorClient, car: CarInDb, owner_id: str, csv_handle: BinaryIO, delim: str
     ) -> tuple[str, str]:
         charset = chardet.detect(csv_handle.read(100))
         dateparser_opts = {'DATE_ORDER': 'DMY'}
         csv_handle.seek(0)
-        reader = csv.DictReader(codecs.iterdecode(csv_handle, charset['encoding']), delimiter=delim)
-        fieldnames = reader.fieldnames
+        reader = csv.DictReader(codecs.iterdecode(csv_handle, charset['encoding'] or 'utf-8'), delimiter=delim)
+        fieldnames = list(reader.fieldnames or [])
         for req_field in ('date', 'kwh_charged', 'charge_type'):
             if req_field not in fieldnames:
                 return 'format-error', f'Required field missing: {req_field}'
@@ -149,7 +149,14 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
 
         for line in reader:
             entry_no += 1
-            charged_str = line.get('kwh_charged')
+            charged_str = line.get('kwh_charged', '')
+            if ',' in charged_str:
+                # Replace comma with dot for decimal numbers on best efforts
+                if charged_str.count('.') != 0 or charged_str.count(',') != 1:
+                    logs.append(f'Line {entry_no}: kwh_charged contains dot and comma: {charged_str}')
+                    errors = True
+                    continue
+                charged_str = charged_str.replace(',', '.')
             try:
                 charged = float(no_number.sub('', charged_str))
             except ValueError:
@@ -164,6 +171,13 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
             line['kwh_charged'] = charged
 
             price_str = line.get('price_total')
+            if price_str and ',' in price_str:
+                # Replace comma with dot for decimal numbers on best efforts
+                if price_str.count('.') != 0 or price_str.count(',') != 1:
+                    logs.append(f'Line {entry_no}: price_total contains dot and comma: {price_str}')
+                    errors = True
+                    continue
+                price_str = price_str.replace(',', '.')
             if price_str is not None:
                 try:
                     price = float(no_number.sub('', price_str))
@@ -200,7 +214,11 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                 line['cpo_id'] = cpo.id
 
             date_str = line['date']
-            date_parsed: datetime = dateparser.parse(date_str, settings=dateparser_opts)
+            date_parsed = dateparser.parse(date_str, settings=dateparser_opts)
+            if not date_parsed:
+                logs.append(f'Line {entry_no}: invalid date: {date_str}')
+                errors = True
+                continue
             while date_parsed.timestamp() in seen_dates:
                 # If we have identical dates, add a second until it is unique
                 # This way, we keep the charges in the order from the CSV file

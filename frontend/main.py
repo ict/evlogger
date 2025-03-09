@@ -50,7 +50,7 @@ class BackendConnector:
         return True
 
     def me(self):
-        return self._do_request('GET', 'users/me/')
+        return self._do_request('GET', 'users/me')
 
     def get_cars(self):
         cars = self._do_request('GET', 'car/')
@@ -144,6 +144,7 @@ def main():
             car_name = st.selectbox('Select a car', [car['Name'] for car in cars], key='selected_car')
             timeframe = st.radio('Timeframe', ['Last month', 'Last year', 'All time'], key='timeframe', index=1)
             st.divider()
+            st.write(f'Logged in as {me["username"]}')
             st.button('Logout', on_click=logout)
 
         st.title(f'{car_name} Overview')
@@ -159,28 +160,29 @@ def main():
         charges_df['date'] = pd.to_datetime(charges_df['date'])
         charges_df = charges_df.set_index('date')
 
-        charges_df_pretty = pd.DataFrame(charges_df)
-        charges_df_pretty = charges_df_pretty.rename(
-            columns={
-                'car_km_driven': 'Distance (km)',
-                'kwh_charged': 'kWh',
-                'cpo_name': 'CPO',
-                'charge_type': 'Type',
-                'price_total': 'Price (€)',
-                'price_per_kwh': 'Price per kWh (€)',
-                'note': 'Note',
-                'car_odometer': 'Odometer (km)',
-            },
-        )
-        charges_df_pretty.index.name = 'Date'
-        charges_df_pretty = charges_df_pretty.drop(
-            columns=['car_id', 'id', 'car_name', 'car_soc_after', 'cpo_id', 'owner_id']
-        )
-        show_raw_charges = st.checkbox('Show raw data')
-        if show_raw_charges:
-            st.dataframe(charges_df)
+        columns_config = {
+            'date': st.column_config.DateColumn('Date', required=True, disabled=False),
+            'car_odometer': st.column_config.NumberColumn('Odometer (km)', format='localized', required=True),
+            'car_km_driven': st.column_config.NumberColumn('Distance', format='%f km', disabled=True),
+            'kwh_charged': st.column_config.NumberColumn('kWh'),
+            'cpo_name': st.column_config.TextColumn('CPO'),
+            'price_total': st.column_config.NumberColumn('Price', format='%.2f €', required=True),
+            'charge_type': st.column_config.SelectboxColumn('Type', options=['AC', 'DC'], required=True),
+            'price_per_kwh': st.column_config.NumberColumn('Price per kWh', format='%.2f €', disabled=True),
+            'note': st.column_config.TextColumn('Note'),
+            'id': None,
+            'car_id': None,
+            'car_name': None,
+            'owner_id': None,
+            'car_soc_after': None,
+            'cpo_id': None,
+        }
+
+        allow_edit = st.checkbox('Allow editing', key='allow_edit')
+        if allow_edit:
+            st.data_editor(charges_df, column_config=columns_config, key='charges_editor')
         else:
-            st.dataframe(charges_df_pretty)
+            st.dataframe(charges_df, column_config=columns_config)
 
         st.header('Statistics')
 

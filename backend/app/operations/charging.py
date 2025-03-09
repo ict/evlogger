@@ -130,7 +130,9 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
     async def csv_import(
         self, db: AsyncIOMotorClient, car: CarInDb, owner_id: str, csv_handle: BinaryIO, delim: str
     ) -> tuple[str, str]:
-        charset = chardet.detect(csv_handle.read(100))
+        logs = []
+        charset = chardet.detect(csv_handle.read(1024 * 1024))
+        logs.append(f'Charset detected: {charset}')
         dateparser_opts = {'DATE_ORDER': 'DMY'}
         csv_handle.seek(0)
         reader = csv.DictReader(codecs.iterdecode(csv_handle, charset['encoding'] or 'utf-8'), delimiter=delim)
@@ -142,7 +144,6 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
             return 'format-error', 'One of cpo_name, cpo_id is required'
         entry_no = 0
         seen_dates = set()
-        logs = []
         errors = False
         line: dict
         no_number = re.compile(r'[^\d.]')

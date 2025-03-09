@@ -17,7 +17,7 @@ from app.operations.crud_base import CPOCrud, CRUDBase, get_collection
 from app.util.timeparse import timeparse
 
 
-async def _check_references(db: AsyncIOMotorClient, item: Charge, owner_id: str) -> None:
+async def _check_plausible(db: AsyncIOMotorClient, item: Charge, owner_id: str, is_new: bool = True) -> None:
     """
     Checks the "foreign keys" of the entity and fills optional (denormalized) fields
     """
@@ -43,24 +43,55 @@ async def _check_references(db: AsyncIOMotorClient, item: Charge, owner_id: str)
         raise ValueError(f"cpo_id '{item.cpo_id}' is invalid")
     item.cpo_name = cpo.get('name', '')
 
-    if item.price_total is None:
-        item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
-
     # check if this charge is newer than the last one
     last_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
         {'car_id': item.car_id}, sort=[('date', -1)], limit=1
     )
-    if last_charge:
+    if last_charge and is_new:
         if item.date < last_charge['date']:
             raise ValueError(f'Charging date ({item.date}) is older than last charge date: {last_charge["date"]}')
 
-    if item.car_odometer is None:
-        item.car_odometer = car.get('odometer', 0) + item.car_km_driven
-    elif item.car_km_driven is None:
-        item.car_km_driven = item.car_odometer - car.get('odometer', 0)
+    # Check if the odometer value and price is plausible when editing a charge
+    if not is_new:
+        if not item.car_odometer:
+            raise ValueError('car_odometer is required when editing a charge')
+        if item.price_total is None:
+            raise ValueError('price_total is required when editing a charge')
 
-    # everything seems to be fine, also update the car
-    await get_collection(db, COLLECTION_CARS).update_one({'_id': car_id}, {'$set': {'odometer': item.car_odometer}})
+        # Find the previous charge before this one and the next one, if they exist
+        prev_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
+            {'car_id': item.car_id, 'date': {'$lt': item.date}}, sort=[('date', -1)], limit=1
+        )
+        next_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
+            {'car_id': item.car_id, 'date': {'$gt': item.date}}, sort=[('date', 1)], limit=1
+        )
+        if prev_charge:
+            prev_odo = prev_charge.get('car_odometer', 0)
+            if prev_odo > item.car_odometer:
+                raise ValueError(f'car_odometer must be greater than the previous charge ({prev_odo})')
+            item.car_km_driven = item.car_odometer - prev_odo
+        else:
+            item.car_km_driven = item.car_odometer
+
+        if next_charge:
+            next_odo = next_charge.get('car_odometer', 1_000_000)
+            if next_odo < item.car_odometer:
+                raise ValueError(f'car_odometer must be less than the next charge ({next_odo})')
+            # Also need to update the next charge
+            await get_collection(db, COLLECTION_CHARGES).update_one(
+                {'_id': next_charge['_id']}, {'$set': {'car_km_driven': next_odo - item.car_odometer}}
+            )
+
+    else:
+        if item.price_total is None:
+            item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
+        if item.car_odometer is None:
+            item.car_odometer = car.get('odometer', 0) + item.car_km_driven
+        elif item.car_km_driven is None:
+            item.car_km_driven = item.car_odometer - car.get('odometer', 0)
+
+        # everything seems to be fine, also update the car
+        await get_collection(db, COLLECTION_CARS).update_one({'_id': car_id}, {'$set': {'odometer': item.car_odometer}})
 
 
 class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
@@ -68,7 +99,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         super().__init__(collection_name, Charge, ChargeInDb)
 
     async def create(self, db: AsyncIOMotorClient, item: Charge, owner_id: str | None = None) -> ChargeInDb:
-        await _check_references(db, item, owner_id)  # raises on errors
+        await _check_plausible(db, item, owner_id)  # raises on errors
         return await super().create(db, item, owner_id)
 
     async def list(
@@ -116,12 +147,12 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         old_item = await self.get_by_id(db, by_id)
         if not old_item:
             return None
-        if owner_id and old_item.owner_id != owner_id:
+        if not owner_id or old_item.owner_id != owner_id:
             return None
         item_data = old_item.model_dump()
         item_data.update(update_data)
         check_item = Charge(**item_data)
-        await _check_references(db, check_item, owner_id)
+        await _check_plausible(db, check_item, owner_id, is_new=False)
         await get_collection(db, self.collection).update_one(
             {'_id': bson.ObjectId(by_id)}, {'$set': check_item.model_dump()}
         )

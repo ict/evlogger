@@ -2,13 +2,117 @@ from datetime import datetime, timedelta
 
 from starlette import status
 
-from app.models.charging import CPO, Car, CarInDb, CPOInDb, Charge, ChargeInDb
+from app.models.charging import CPO, Car, CarInDb, Charge, ChargeInDb, CPOInDb
 from tests.conftest import register_and_login
 
 
 def test_unauthenticated_list(test_app):
     response = test_app.get('/charge')
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_editing_old_charge(test_app):
+    token = register_and_login(test_app, 'editor')
+
+    # create car and cpo for testing
+    car_model = Car(name='Editor Car', make='Hyundai', model='Kona', color='#ff1295', battery_capacity=50)
+    response = test_app.post(
+        '/car',
+        headers={'Authorization': f'Bearer {token}'},
+        json={
+            'name': car_model.name,
+            'make': car_model.make,
+            'model': car_model.model,
+            'color': '#ff1295',
+            'battery_capacity': car_model.battery_capacity,
+        },
+    )
+    assert response.status_code == 201, response.content
+    charges = response.json()
+    my_car = CarInDb(**charges)
+
+    cpo_model = CPO(name='Infra', default_price=49)
+    response = test_app.post('/cpo', headers={'Authorization': f'Bearer {token}'}, json=cpo_model.model_dump())
+    assert response.status_code == 201, response.content
+    charges = response.json()
+    my_cpo = CPOInDb(**charges)
+
+    # create different charges at different times
+    dates = [
+        datetime.now() - timedelta(days=90) + timedelta(hours=1),
+        datetime.now() - timedelta(days=60) + timedelta(hours=1),
+        datetime.now() - timedelta(days=30) + timedelta(hours=1),
+        datetime.now() - timedelta(days=1) + timedelta(hours=1),
+    ]
+    for i, date in enumerate(dates):
+        charge_model = Charge(
+            date=date,
+            car_id=my_car.id,
+            car_soc_after=90,
+            car_odometer=200 * (i + 1),
+            cpo_id=my_cpo.id,
+            kwh_charged=1500,
+            charge_type='AC',
+        )
+        response = test_app.post(
+            '/charge', headers={'Authorization': f'Bearer {token}'}, json=charge_model.model_dump(mode='json')
+        )
+        assert response.status_code == 201, response.content
+
+    # get all charges
+    response = test_app.get('/charge', headers={'Authorization': f'Bearer {token}'})
+    assert response.status_code == 200, response.content
+    charges = response.json()
+    assert len(charges) == len(dates)
+
+    for charge in charges:
+        assert charge['car_km_driven'] == 200
+
+    # Edit the price of the newest charge
+    charge_model = Charge(
+        date=dates[0],
+        car_id=my_car.id,
+        car_odometer=200,
+        cpo_id=my_cpo.id,
+        kwh_charged=1500,
+        charge_type='AC',
+        price_total=1500,
+    )
+    response = test_app.put(
+        f'/charge/{charges[-1]["id"]}',
+        headers={'Authorization': f'Bearer {token}'},
+        json=charge_model.model_dump(mode='json'),
+    )
+    assert response.status_code == 200, response.content
+    response_data = response.json()
+    assert response_data['price_total'] == 1500
+    assert response_data['price_per_kwh'] == 100
+
+    # Try to change the km of the oldest charge to an invalid value
+    charge_model.car_odometer = 5000
+    response = test_app.put(
+        f'/charge/{charges[-1]["id"]}',
+        headers={'Authorization': f'Bearer {token}'},
+        json=charge_model.model_dump(mode='json'),
+    )
+    assert response.status_code == 422, response.content
+
+    # Now do something valid
+    charge_model.car_odometer = 100
+    response = test_app.put(
+        f'/charge/{charges[-1]["id"]}',
+        headers={'Authorization': f'Bearer {token}'},
+        json=charge_model.model_dump(mode='json'),
+    )
+    assert response.status_code == 200, response.content
+    response_data = response.json()
+    assert response_data['car_odometer'] == 100
+    # Check if the second charge has been updated as well
+    response = test_app.get(f'/charge/{charges[-2]["id"]}', headers={'Authorization': f'Bearer {token}'})
+    assert response.status_code == 200, response.content
+    response_data = response.json()
+    assert response_data['car_odometer'] == 400  # Still the same
+    assert response_data['car_km_driven'] == 300  # 100 more now
 
 
 def test_multiple_charges_and_list(test_app):

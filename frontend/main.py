@@ -50,10 +50,10 @@ class BackendConnector:
         return True
 
     def me(self):
-        return self._do_request('GET', 'users/me')
+        return self._do_request('GET', 'users/me/')
 
     def get_cars(self):
-        cars = self._do_request('GET', 'car')
+        cars = self._do_request('GET', 'car/')
         return [
             {
                 'Name': car['name'],
@@ -67,10 +67,20 @@ class BackendConnector:
             for car in cars
         ]
 
-    def get_charges(self, car_id):
-        last_year = datetime.datetime.now(datetime.UTC)
-        last_year = last_year.replace(year=last_year.year - 1)
-        all_charges = self._do_request('GET', 'charge/', data={'from_date': last_year.isoformat(), 'limit': 1000})
+    def get_charges(self, car_id, timeframe):
+        if timeframe == 'Last month':
+            tf = datetime.datetime.now(datetime.UTC)
+            tf = tf.replace(month=tf.month - 1)
+        elif timeframe == 'Last year':
+            tf = datetime.datetime.now(datetime.UTC)
+            tf = tf.replace(year=tf.year - 1)
+        else:
+            tf = None
+
+        req_data = {'limit': 1000}
+        if tf:
+            req_data['from_date'] = tf.isoformat()
+        all_charges = self._do_request('GET', 'charge/', data=req_data)
         return [charge for charge in all_charges if charge['car_id'] == car_id]
 
     def pretty_charges(self, charges):
@@ -127,35 +137,59 @@ def main():
         BACKEND.token = st.session_state.user_token
         me = BACKEND.me()
         st.session_state.username = me['username']
-        st.title(f'Welcome {st.session_state.username}')
 
-        st.header('Cars')
-        cars = BACKEND.get_cars()
-        car_name = st.selectbox('Select a car', [car['Name'] for car in cars], key='selected_car')
-        st.dataframe([car for car in cars if car['Name'] == car_name])
-        st.divider()
+        with st.sidebar:
+            st.header('View settings')
+            cars = BACKEND.get_cars()
+            car_name = st.selectbox('Select a car', [car['Name'] for car in cars], key='selected_car')
+            timeframe = st.radio('Timeframe', ['Last month', 'Last year', 'All time'], key='timeframe', index=1)
+            st.divider()
+            st.button('Logout', on_click=logout)
+
+        st.title(f'{car_name} Overview')
+        st.dataframe([car for car in cars if car['Name'] == car_name], hide_index=True)
 
         st.header('Charges')
-        charges = BACKEND.get_charges(next(car['id'] for car in cars if car['Name'] == car_name))
-        raw = st.checkbox('Show raw data')
-        if raw:
-            st.dataframe(charges)
+        charges_raw = BACKEND.get_charges(next(car['id'] for car in cars if car['Name'] == car_name), timeframe)
+
+        charges_df = pd.DataFrame(charges_raw)
+        charges_df['kwh_charged'] = charges_df['kwh_charged'] / 100
+        charges_df['price_total'] = charges_df['price_total'] / 100
+        charges_df['price_per_kwh'] = charges_df['price_per_kwh'] / 100
+        charges_df['date'] = pd.to_datetime(charges_df['date'])
+        charges_df = charges_df.set_index('date')
+
+        charges_df_pretty = pd.DataFrame(charges_df)
+        charges_df_pretty = charges_df_pretty.rename(
+            columns={
+                'car_km_driven': 'Distance (km)',
+                'kwh_charged': 'kWh',
+                'cpo_name': 'CPO',
+                'charge_type': 'Type',
+                'price_total': 'Price (€)',
+                'price_per_kwh': 'Price per kWh (€)',
+                'note': 'Note',
+                'car_odometer': 'Odometer (km)',
+            },
+        )
+        charges_df_pretty.index.name = 'Date'
+        charges_df_pretty = charges_df_pretty.drop(
+            columns=['car_id', 'id', 'car_name', 'car_soc_after', 'cpo_id', 'owner_id']
+        )
+        show_raw_charges = st.checkbox('Show raw data')
+        if show_raw_charges:
+            st.dataframe(charges_df)
         else:
-            st.dataframe(BACKEND.pretty_charges(charges))
+            st.dataframe(charges_df_pretty)
 
         st.header('Statistics')
 
         st.subheader('Charging Distribution')
         acdc_cols = st.columns(5)
 
-        pdf = pd.DataFrame(charges)
-        pdf['kwh_charged'] = pdf['kwh_charged'] / 100
-        pdf['date'] = pd.to_datetime(pdf['date'])
-        pdf = pdf.set_index('date')
-
         # Aggregate AC vs DC charging
-        ac_charging = pdf[pdf['charge_type'] == 'AC']['kwh_charged'].sum()
-        dc_charging = pdf[pdf['charge_type'] == 'DC']['kwh_charged'].sum()
+        ac_charging = charges_df[charges_df['charge_type'] == 'AC']['kwh_charged'].sum()
+        dc_charging = charges_df[charges_df['charge_type'] == 'DC']['kwh_charged'].sum()
 
         total_charging = ac_charging + dc_charging
         ac_dc_ratio = ac_charging / total_charging if total_charging > 0 else 0  # Avoid division by zero
@@ -182,7 +216,7 @@ def main():
 
         # Calculate monthly totals
         st.subheader('Monthly Totals')
-        monthly_totals = pdf.resample('M').agg({'kwh_charged': 'sum', 'car_km_driven': 'sum'})
+        monthly_totals = charges_df.resample('M').agg({'kwh_charged': 'sum', 'car_km_driven': 'sum'})
 
         # Rename the columns for display
         monthly_totals['consumption_kwh_per_100km'] = (
@@ -198,8 +232,6 @@ def main():
             use_container_width=True,
         )
         st.line_chart(monthly_totals, x_label='Month', y=['kWh charged', 'km driven'])
-
-        st.button('Logout', on_click=logout)
 
 
 if __name__ == '__main__':

@@ -1,4 +1,5 @@
 import datetime
+import time
 
 import loguru
 import pandas as pd
@@ -23,17 +24,15 @@ class BackendConnector:
         if self.token:
             headers['Authorization'] = f'Bearer {self.token}'
 
-        if method != 'POST':
-            # LOGGER.debug('Requesting {} with params {}', endpoint, data)
+        if method == 'GET':
             response = requests.request(method, f'{self.url}/{endpoint}', headers=headers, params=data, timeout=10)
         else:
-            # LOGGER.debug('POSTing to {} with data {}', endpoint, data)
-            response = requests.post(f'{self.url}/{endpoint}', headers=headers, json=data, timeout=10)
+            response = requests.request(method, f'{self.url}/{endpoint}', headers=headers, json=data, timeout=10)
 
         if 200 <= response.status_code < 300:
             return response.json()
         LOGGER.error('Error {}: {}', response.status_code, response.text)  # noqa: PLE1205
-        msg = f'Error {response.status_code}'
+        msg = f'Error {response.status_code}: {response.text}'
         raise ValueError(msg)
 
     def login(self, username, password):
@@ -82,6 +81,30 @@ class BackendConnector:
             req_data['from_date'] = tf.isoformat()
         all_charges = self._do_request('GET', 'charge/', data=req_data)
         return [charge for charge in all_charges if charge['car_id'] == car_id]
+
+    def get_cpos(self):
+        return self._do_request('GET', 'cpo/', data={'limit': 100})
+
+    def add_charge(self, charge_dict):
+        api_dict = charge_dict.copy()
+        api_dict['kwh_charged'] = int(api_dict['kwh_charged'] * 100)
+        api_dict['price_total'] = int(api_dict['price_total'] * 100)
+        try:
+            self._do_request('POST', 'charge/', data=api_dict)
+            return None
+        except ValueError as err:
+            return err.args[0]
+
+    def edit_charge(self, charge_dict):
+        api_dict = charge_dict.copy()
+        api_dict['kwh_charged'] = int(api_dict['kwh_charged'] * 100)
+        api_dict['price_total'] = int(api_dict['price_total'] * 100)
+        del api_dict['id']
+        try:
+            self._do_request('PUT', f'charge/{charge_dict["id"]}', data=api_dict)
+            return None
+        except ValueError as err:
+            return err.args[0]
 
     def pretty_charges(self, charges):
         return [
@@ -147,6 +170,10 @@ def main():
             st.write(f'Logged in as {me["username"]}')
             st.button('Logout', on_click=logout)
 
+        # Get a list of CPOs and their ids
+        cpos = BACKEND.get_cpos()
+        cpo_ids = {cpo['name']: cpo['id'] for cpo in cpos}
+
         st.title(f'{car_name} Overview')
         st.dataframe([car for car in cars if car['Name'] == car_name], hide_index=True)
 
@@ -164,8 +191,8 @@ def main():
             'date': st.column_config.DateColumn('Date', required=True, disabled=False),
             'car_odometer': st.column_config.NumberColumn('Odometer (km)', format='localized', required=True),
             'car_km_driven': st.column_config.NumberColumn('Distance', format='%f km', disabled=True),
-            'kwh_charged': st.column_config.NumberColumn('kWh'),
-            'cpo_name': st.column_config.TextColumn('CPO'),
+            'kwh_charged': st.column_config.NumberColumn('kWh', required=True),
+            'cpo_name': st.column_config.SelectboxColumn('CPO', options=list(cpo_ids.keys()), required=True),
             'price_total': st.column_config.NumberColumn('Price', format='%.2f €', required=True),
             'charge_type': st.column_config.SelectboxColumn('Type', options=['AC', 'DC'], required=True),
             'price_per_kwh': st.column_config.NumberColumn('Price per kWh', format='%.2f €', disabled=True),
@@ -178,9 +205,65 @@ def main():
             'cpo_id': None,
         }
 
+        @st.dialog('Review Changes')
+        def check_edits():
+            changeset = st.session_state.charges_editor
+            to_change = []
+            to_add = []
+            for edit_row, changes in changeset.get('edited_rows', {}).items():
+                log = []
+                affected_row = charges_df.iloc[edit_row].to_dict()
+                affected_row['date'] = str(charges_df.index[edit_row])
+                st.subheader(f'Charge on {affected_row["date"]}')
+                for key, new_value in changes.items():
+                    log.append(f'- {key}:  {affected_row[key]} -> **{new_value}**')
+                    affected_row[key] = new_value
+                if 'cpo_name' in changes:
+                    log.append(f'- cpo_id: {affected_row["cpo_id"]} -> **{cpo_ids[changes["cpo_name"]]}**')
+                    affected_row['cpo_id'] = cpo_ids[changes['cpo_name']]
+                st.info('\n'.join(log))
+                to_change.append(affected_row)
+            for new_row in changeset.get('added_rows', []):
+                st.subheader('New Charge')
+                new_charge = {
+                    'car_id': next(car['id'] for car in cars if car['Name'] == car_name),
+                }
+                for key, value in new_row.items():
+                    if key == 'cpo_name':
+                        new_charge['cpo_id'] = cpo_ids[value]
+                    if key == '_index':
+                        new_charge['date'] = value
+                        continue
+                    new_charge[key] = value
+                st.write(new_charge)
+                to_add.append(new_charge)
+            if changeset.get('deleted_rows'):
+                # TODO: Implement deletion
+                st.error('Deletions are not supported at the moment')
+            if st.button('Save changes'):
+                success = True
+                for row in to_change:
+                    if msg := BACKEND.edit_charge(row):
+                        st.error(msg)
+                        success = False
+                for row in to_add:
+                    if msg := BACKEND.add_charge(row):
+                        st.error(msg)
+                        success = False
+                if success:
+                    st.balloons()
+                    time.sleep(1)
+                    st.rerun()
+
         allow_edit = st.checkbox('Allow editing', key='allow_edit')
         if allow_edit:
-            st.data_editor(charges_df, column_config=columns_config, key='charges_editor')
+            st.data_editor(
+                charges_df,
+                column_config=columns_config,
+                key='charges_editor',
+                num_rows='dynamic',
+            )
+            st.button('Review changes', on_click=check_edits)
         else:
             st.dataframe(charges_df, column_config=columns_config)
 

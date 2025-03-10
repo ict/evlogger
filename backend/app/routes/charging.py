@@ -1,16 +1,17 @@
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, UploadFile
 from fastapi.exceptions import HTTPException
 from starlette.status import (
-    HTTP_204_NO_CONTENT,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-    HTTP_406_NOT_ACCEPTABLE,
     HTTP_201_CREATED,
+    HTTP_204_NO_CONTENT,
+    HTTP_406_NOT_ACCEPTABLE,
+    HTTP_422_UNPROCESSABLE_ENTITY,
 )
 
 from app.core.db import AsyncIOMotorClient, get_database
-from app.models.charging import Charge, ChargeInDb, CarInDb
+from app.models.charging import CarInDb, Charge, ChargeInDb
 from app.models.helpers import SimpleActionResult
 from app.models.users import UserInDb
 from app.operations.charging import ChargeCrudOp
@@ -36,7 +37,7 @@ async def list_charges(
     try:
         charges = await ChargeCrudOp.list(db, limit, offset, user.id, timespan, from_date, to_date)
     except ValueError as err:
-        raise HTTPException(HTTP_406_NOT_ACCEPTABLE, str(err))
+        raise HTTPException(HTTP_406_NOT_ACCEPTABLE, str(err)) from None
     return charges
 
 
@@ -45,7 +46,7 @@ async def create_charge(charge: Charge, db: AsyncIOMotorClient = DBDepend, user:
     try:
         return await ChargeCrudOp.create(db, charge, user.id)
     except ValueError as err:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, str(err))
+        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, str(err)) from None
 
 
 @router.get('/{id}')
@@ -58,10 +59,10 @@ async def get_charge_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: Use
 
 @router.delete('/{id}', status_code=HTTP_204_NO_CONTENT)
 async def delete_charge_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends):
+    # FIXME: Other charges need adjustment afterwards
     success = await ChargeCrudOp.delete_by_id(db, id, user.id)
     if not success:
         raise HTTPException(404, 'Not found')
-    return None
 
 
 @router.put('/{id}')
@@ -71,7 +72,7 @@ async def update_charge_by_id(
     try:
         new_charge = await ChargeCrudOp.update_by_id(db, id, charge, user.id)
     except ValueError as err:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, str(err))
+        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, str(err)) from None
     if not new_charge:
         raise HTTPException(404, 'Not found')
     return new_charge
@@ -87,7 +88,7 @@ async def car_from_id(car_id: str, db: AsyncIOMotorClient = DBDepend, user: User
 @router.post('/csv_import')
 async def csv_import(
     csv_file: UploadFile,
-    car: CarInDb = Depends(car_from_id),
+    car: Annotated[CarInDb, Depends(car_from_id)],
     delimiter: str = ',',
     db: AsyncIOMotorClient = DBDepend,
     user: UserInDb = UserDepends,

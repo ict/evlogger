@@ -108,9 +108,9 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         limit: int = 20,
         offset: int = 0,
         owner_id: str | None = None,
-        timespan: str = None,
-        from_date: datetime = None,
-        to_date: datetime = None,
+        timespan: str | None = None,
+        from_date: datetime | None = None,
+        to_date: datetime | None = None,
     ) -> list[ChargeInDb]:
         filters = {}
         if owner_id is not None:

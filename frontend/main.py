@@ -186,6 +186,44 @@ def main():
 
         st.header('Statistics')
 
+        if timeframe == 'All time':
+            # Show metrics for each year
+            years = charges_df.index.year.unique()
+            prev_year = None
+            for year in sorted(years):
+                year_df = charges_df[charges_df.index.year == year]
+                st.subheader(f'{year}')
+                a, b, c, d = st.columns(4)
+                total_km = year_df['car_km_driven'].sum()
+                total_price = round(year_df['price_total'].sum(), 2)
+                price_100_km = round(year_df['price_total'].sum() / year_df['car_km_driven'].sum() * 100, 2)
+                a.metric(
+                    'Total Distance',
+                    f'{total_km} km',
+                    border=True,
+                    delta=int(total_km - prev_year['total_km']) if prev_year else None,
+                    delta_color='off',
+                )
+                b.metric(
+                    'Total Price',
+                    f'{total_price} €',
+                    border=True,
+                    delta=(round(total_price - prev_year['total_price'], 2) if prev_year else None),
+                    delta_color='inverse',
+                )
+                c.metric(
+                    'Price per 100 km',
+                    f'{price_100_km} €',
+                    border=True,
+                    delta=round(price_100_km - prev_year['price_100_km'], 2) if prev_year else None,
+                    delta_color='inverse',
+                )
+                prev_year = {
+                    'total_km': total_km,
+                    'total_price': total_price,
+                    'price_100_km': price_100_km,
+                }
+
         st.subheader('Charging Distribution')
         acdc_cols = st.columns(5)
 
@@ -218,7 +256,7 @@ def main():
 
         # Calculate monthly totals
         st.subheader('Monthly Totals')
-        monthly_totals = charges_df.resample('M').agg({'kwh_charged': 'sum', 'car_km_driven': 'sum'})
+        monthly_totals = charges_df.resample('ME').agg({'kwh_charged': 'sum', 'car_km_driven': 'sum'})
 
         # Rename the columns for display
         monthly_totals['consumption_kwh_per_100km'] = (

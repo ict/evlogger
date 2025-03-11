@@ -29,6 +29,8 @@ class BackendConnector:
         else:
             response = requests.request(method, f'{self.url}/{endpoint}', headers=headers, json=data, timeout=10)
 
+        if response.status_code == 204:
+            return None
         if 200 <= response.status_code < 300:
             return response.json()
         LOGGER.error('Error {}: {}', response.status_code, response.text)  # noqa: PLE1205
@@ -106,21 +108,12 @@ class BackendConnector:
         except ValueError as err:
             return err.args[0]
 
-    def pretty_charges(self, charges):
-        return [
-            {
-                'Date': charge['date'],
-                'Odometer': charge['car_odometer'],
-                'Distance': charge['car_km_driven'],
-                'kWh': float(charge['kwh_charged']) / 100,
-                'CPO': charge['cpo_name'],
-                'Type': charge['charge_type'],
-                'Price': float(charge['price_total']) / 100,
-                'Price per kWh': float(charge['price_per_kwh']) / 100,
-                'Note': charge['note'],
-            }
-            for charge in charges
-        ]
+    def delete_charge(self, charge_id):
+        try:
+            return self._do_request('DELETE', f'charge/{charge_id}')
+            return None
+        except ValueError as err:
+            return err.args[0]
 
 
 BACKEND = BackendConnector(BACKEND_URL)
@@ -210,6 +203,7 @@ def main():
             changeset = st.session_state.charges_editor
             to_change = []
             to_add = []
+            to_delete = []
             for edit_row, changes in changeset.get('edited_rows', {}).items():
                 log = []
                 affected_row = charges_df.iloc[edit_row].to_dict()
@@ -238,8 +232,14 @@ def main():
                 st.write(new_charge)
                 to_add.append(new_charge)
             if changeset.get('deleted_rows'):
-                # TODO: Implement deletion
-                st.error('Deletions are not supported at the moment')
+                st.subheader('Deleted Charges')
+                lines = []
+                for row in changeset.get('deleted_rows'):
+                    affected_row = charges_df.iloc[row].to_dict()
+                    affected_row['date'] = str(charges_df.index[row])
+                    to_delete.append(affected_row['id'])
+                    lines.append(f'- Charge at {affected_row["date"]} {affected_row["kwh_charged"]} kWh')
+                st.warning('\n'.join(lines))
             if st.button('Save changes'):
                 success = True
                 for row in to_change:
@@ -248,6 +248,10 @@ def main():
                         success = False
                 for row in to_add:
                     if msg := BACKEND.add_charge(row):
+                        st.error(msg)
+                        success = False
+                for row in to_delete:
+                    if msg := BACKEND.delete_charge(row):
                         st.error(msg)
                         success = False
                 if success:

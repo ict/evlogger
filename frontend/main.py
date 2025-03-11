@@ -87,6 +87,15 @@ class BackendConnector:
     def get_cpos(self):
         return self._do_request('GET', 'cpo/', data={'limit': 100})
 
+    def edit_cpo(self, cpo_dict):
+        api_dict = cpo_dict.copy()
+        del api_dict['id']
+        try:
+            self._do_request('PUT', f'cpo/{cpo_dict["id"]}', data=api_dict)
+            return None
+        except ValueError as err:
+            return err.args[0]
+
     def add_charge(self, charge_dict):
         api_dict = charge_dict.copy()
         api_dict['kwh_charged'] = int(api_dict['kwh_charged'] * 100)
@@ -154,18 +163,52 @@ def main():
         me = BACKEND.me()
         st.session_state.username = me['username']
 
+        # Get a list of CPOs and their ids
+        cpos = BACKEND.get_cpos()
+        cpo_ids = {cpo['name']: cpo['id'] for cpo in cpos}
+
+        @st.dialog('CPO Details')
+        def cpo_details():
+            cpo_name = st.session_state.selected_cpo
+            cpo_id = cpo_ids[cpo_name]
+            cpo = next(cpo for cpo in cpos if cpo['id'] == cpo_id)
+            columns_config = {
+                'name': st.column_config.TextColumn('Name', required=True),
+                'id': None,
+                'owner_id': None,
+                'default_price': st.column_config.NumberColumn('Default Price', format='%d Cents', required=True),
+            }
+            st.data_editor([cpo], column_config=columns_config, key='cpo_editor')
+            if st.button('Save changes'):
+                cpo_new = st.session_state.cpo_editor['edited_rows'][0]
+                cpo['name'] = cpo_new.get('name', cpo['name'])
+                cpo['default_price'] = cpo_new.get('default_price', cpo['default_price'])
+                if msg := BACKEND.edit_cpo(cpo):
+                    st.error(msg)
+                else:
+                    st.balloons()
+                    time.sleep(1)
+                    st.rerun()
+
+        def cpo_details_click():
+            if st.session_state.selected_cpo:
+                cpo_details()
+
         with st.sidebar:
             st.header('View settings')
             cars = BACKEND.get_cars()
             car_name = st.selectbox('Select a car', [car['Name'] for car in cars], key='selected_car')
+            st.selectbox(
+                'See CPO Details',
+                [cpo['name'] for cpo in cpos],
+                key='selected_cpo',
+                index=None,
+                on_change=cpo_details_click,
+            )
             timeframe = st.radio('Timeframe', ['Last month', 'Last year', 'All time'], key='timeframe', index=1)
             st.divider()
             st.write(f'Logged in as {me["username"]}')
             st.button('Logout', on_click=logout)
-
-        # Get a list of CPOs and their ids
-        cpos = BACKEND.get_cpos()
-        cpo_ids = {cpo['name']: cpo['id'] for cpo in cpos}
 
         st.title(f'{car_name} Overview')
         st.dataframe([car for car in cars if car['Name'] == car_name], hide_index=True)
@@ -179,6 +222,8 @@ def main():
         charges_df['price_per_kwh'] = charges_df['price_per_kwh'] / 100
         charges_df['date'] = pd.to_datetime(charges_df['date'])
         charges_df = charges_df.set_index('date')
+        # Calculate the distance driven between charges
+        charges_df['car_km_driven'] = charges_df['car_odometer'][::-1].diff().fillna(0)[::-1]
 
         columns_config = {
             'date': st.column_config.DateColumn('Date', required=True, disabled=False),
@@ -197,6 +242,18 @@ def main():
             'car_soc_after': None,
             'cpo_id': None,
         }
+
+        columns_order = [
+            'date',
+            'car_odometer',
+            'car_km_driven',
+            'kwh_charged',
+            'price_total',
+            'price_per_kwh',
+            'cpo_name',
+            'charge_type',
+            'note',
+        ]
 
         @st.dialog('Review Changes')
         def check_edits():
@@ -264,12 +321,13 @@ def main():
             st.data_editor(
                 charges_df,
                 column_config=columns_config,
+                column_order=columns_order,
                 key='charges_editor',
                 num_rows='dynamic',
             )
             st.button('Review changes', on_click=check_edits)
         else:
-            st.dataframe(charges_df, column_config=columns_config)
+            st.dataframe(charges_df, column_config=columns_config, column_order=columns_order)
 
         st.header('Statistics')
 

@@ -4,12 +4,15 @@ Test for the charging operations
 
 # ruff: noqa: S101 D103
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import dateparser
 from starlette import status
 
 from app.models.charging import CPO, Car, CarInDb, ChargeInDb, ChargeSubmission, ChargeTypeEnum, CPOInDb
 from tests.conftest import register_and_login
+
+TEST_DATA_DIR = Path(__file__).parent.parent / 'test_data'
 
 
 def test_unauthenticated_list(test_app):
@@ -466,3 +469,30 @@ def test_authenticated_crud(test_app):
     # check if direct access is no longer possible
     response = test_app.get(f'/charge/{my_charge.id}', headers={'Authorization': f'Bearer {token}'})
     assert response.status_code == 404, response.content
+
+
+def test_csv_import(test_app):
+    token = register_and_login(test_app, 'importer')
+
+    # Create a car
+    car_model = Car(name='Import Car', make='Tesla', model='Model S', color='#ffffff', battery_capacity=90)
+    response = test_app.post(
+        '/car', headers={'Authorization': f'Bearer {token}'}, json=car_model.model_dump(mode='json')
+    )
+    assert response.status_code == 201, response.content
+    car_id = response.json()['id']
+
+    # Push the CSV
+    with TEST_DATA_DIR.joinpath('e208.csv').open('rb') as f:
+        response = test_app.post(
+            '/charge/csv_import',
+            headers={'Authorization': f'Bearer {token}'},
+            files={'csv_file': f},
+            params={'car_id': car_id},
+        )
+
+    assert response.status_code == 200, response.content
+    response_data = response.json()
+    assert response_data['result'] == 'completed'
+    messages = response_data['message'].split('\n')
+    assert len(messages) > 20

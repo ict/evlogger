@@ -7,6 +7,7 @@ from typing import BinaryIO
 import bson
 import chardet
 import dateparser
+from loguru import logger
 from pydantic import ValidationError
 
 import app.core
@@ -172,7 +173,7 @@ class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
         logs = []
         charset = chardet.detect(csv_handle.read(1024 * 1024))
         logs.append(f'Charset detected: {charset}')
-        dateparser_opts = {'DATE_ORDER': 'DMY'}
+        dateparser_opts = {'DATE_ORDER': 'DMY', 'TIMEZONE': 'UTC', 'RETURN_AS_TIMEZONE_AWARE': True}
         csv_handle.seek(0)
         reader = csv.DictReader(codecs.iterdecode(csv_handle, charset['encoding'] or 'utf-8'), delimiter=delim)
         fieldnames = list(reader.fieldnames or [])

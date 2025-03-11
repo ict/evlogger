@@ -1,13 +1,13 @@
 from decimal import Decimal
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 
 import bson
-from bson.codec_options import CodecOptions, TypeRegistry, TypeCodec
+from bson.codec_options import CodecOptions, TypeCodec, TypeRegistry
 
 import app.core
 from app.core import config
 from app.core.db import AsyncIOMotorClient
-from app.models.charging import CarInDb, Car, CPO, CPOInDb
+from app.models.charging import CPO, Car, CarInDb, CPOInDb
 
 InCls = TypeVar('InCls')
 DbCls = TypeVar('DbCls')
@@ -34,9 +34,8 @@ def get_collection(db: AsyncIOMotorClient, collection_name: str):
 
     decimal_codec = DecimalCodec()
     type_registry = TypeRegistry([decimal_codec], fallback_encoder=fallback_encoder)
-    codec_options = CodecOptions(type_registry=type_registry)
-    coll = db[config.DATABASE_NAME].get_collection(collection_name, codec_options=codec_options)
-    return coll
+    codec_options = CodecOptions(type_registry=type_registry, tz_aware=True)
+    return db[config.DATABASE_NAME].get_collection(collection_name, codec_options=codec_options)
 
 
 class CRUDBase(Generic[InCls, DbCls]):
@@ -60,7 +59,7 @@ class CRUDBase(Generic[InCls, DbCls]):
         return None
 
     async def get_by_property(
-            self, db: AsyncIOMotorClient, property_name: str, property_value: str, owner_id: str | None = None
+        self, db: AsyncIOMotorClient, property_name: str, property_value: str, owner_id: str | None = None
     ) -> DbCls | None:
         find_filter = {property_name: property_value}
         if owner_id is not None:
@@ -72,7 +71,7 @@ class CRUDBase(Generic[InCls, DbCls]):
         return None
 
     async def list(
-            self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0, owner_id: str | None = None
+        self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0, owner_id: str | None = None
     ) -> list[DbCls]:
         result: list[CarInDb] = []
         if not owner_id:
@@ -102,7 +101,7 @@ class CRUDBase(Generic[InCls, DbCls]):
         return res.deleted_count > 0
 
     async def update_by_id(
-            self, db: AsyncIOMotorClient, by_id: str, new_item: InCls, owner_id: str | None = None
+        self, db: AsyncIOMotorClient, by_id: str, new_item: InCls, owner_id: str | None = None
     ) -> DbCls | None:
         update_data = new_item.model_dump(exclude_defaults=True, exclude_unset=True)
         old_item = await self.get_by_id(db, by_id)

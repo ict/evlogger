@@ -1,8 +1,14 @@
-from datetime import datetime, timedelta
+"""
+Test for the charging operations
+"""
 
+# ruff: noqa: S101 D103
+from datetime import UTC, datetime, timedelta
+
+import dateparser
 from starlette import status
 
-from app.models.charging import CPO, Car, CarInDb, Charge, ChargeInDb, CPOInDb
+from app.models.charging import CPO, Car, CarInDb, ChargeInDb, ChargeSubmission, ChargeTypeEnum, CPOInDb
 from tests.conftest import register_and_login
 
 
@@ -39,20 +45,20 @@ def test_editing_old_charge(test_app):
 
     # create different charges at different times
     dates = [
-        datetime.now() - timedelta(days=90) + timedelta(hours=1),
-        datetime.now() - timedelta(days=60) + timedelta(hours=1),
-        datetime.now() - timedelta(days=30) + timedelta(hours=1),
-        datetime.now() - timedelta(days=1) + timedelta(hours=1),
+        datetime.now(UTC) - timedelta(days=90) + timedelta(hours=1),
+        datetime.now(UTC) - timedelta(days=60) + timedelta(hours=1),
+        datetime.now(UTC) - timedelta(days=30) + timedelta(hours=1),
+        datetime.now(UTC) - timedelta(days=1) + timedelta(hours=1),
     ]
     for i, date in enumerate(dates):
-        charge_model = Charge(
+        charge_model = ChargeSubmission(
             date=date,
             car_id=my_car.id,
             car_soc_after=90,
             car_odometer=200 * (i + 1),
             cpo_id=my_cpo.id,
             kwh_charged=1500,
-            charge_type='AC',
+            charge_type=ChargeTypeEnum.ac,
         )
         response = test_app.post(
             '/charge', headers={'Authorization': f'Bearer {token}'}, json=charge_model.model_dump(mode='json')
@@ -65,17 +71,14 @@ def test_editing_old_charge(test_app):
     charges = response.json()
     assert len(charges) == len(dates)
 
-    for charge in charges:
-        assert charge['car_km_driven'] == 200
-
     # Edit the price of the newest charge
-    charge_model = Charge(
+    charge_model = ChargeSubmission(
         date=dates[0],
         car_id=my_car.id,
         car_odometer=200,
         cpo_id=my_cpo.id,
         kwh_charged=1500,
-        charge_type='AC',
+        charge_type=ChargeTypeEnum.ac,
         price_total=1500,
     )
     response = test_app.put(
@@ -112,7 +115,6 @@ def test_editing_old_charge(test_app):
     assert response.status_code == 200, response.content
     response_data = response.json()
     assert response_data['car_odometer'] == 400  # Still the same
-    assert response_data['car_km_driven'] == 300  # 100 more now
 
 
 def test_multiple_charges_and_list(test_app):
@@ -143,33 +145,22 @@ def test_multiple_charges_and_list(test_app):
 
     # create different charges at different times
     dates = [
-        datetime.now() - timedelta(days=365) + timedelta(hours=1),
-        datetime.now() - timedelta(days=30) + timedelta(hours=1),
-        datetime.now() - timedelta(days=9) + timedelta(hours=1),
-        datetime.now() - timedelta(days=1) + timedelta(hours=1),
-        datetime.now(),
+        datetime.now(UTC) - timedelta(days=365) + timedelta(hours=1),
+        datetime.now(UTC) - timedelta(days=30) + timedelta(hours=1),
+        datetime.now(UTC) - timedelta(days=9) + timedelta(hours=1),
+        datetime.now(UTC) - timedelta(days=1) + timedelta(hours=1),
+        datetime.now(UTC),
     ]
     for i, date in enumerate(dates):
-        if i % 2 == 0:
-            charge_model = Charge(
-                date=date,
-                car_id=my_car.id,
-                car_soc_after=90,
-                car_odometer=200 * (i + 1),
-                cpo_id=my_cpo.id,
-                kwh_charged=1500,
-                charge_type='AC',
-            )
-        else:
-            charge_model = Charge(
-                date=date,
-                car_id=my_car.id,
-                car_soc_after=90,
-                car_km_driven=200,
-                cpo_id=my_cpo.id,
-                kwh_charged=1500,
-                charge_type='AC',
-            )
+        charge_model = ChargeSubmission(
+            date=date,
+            car_id=my_car.id,
+            car_soc_after=90,
+            car_odometer=200 * (i + 1),
+            cpo_id=my_cpo.id,
+            kwh_charged=1500,
+            charge_type=ChargeTypeEnum.ac,
+        )
         response = test_app.post(
             '/charge', headers={'Authorization': f'Bearer {token}'}, json=charge_model.model_dump(mode='json')
         )
@@ -191,14 +182,14 @@ def test_multiple_charges_and_list(test_app):
     assert response.json()['odometer'] == 1000
 
     # check if inserting a charge with an older date than the last one fails
-    charge_model = Charge(
-        date=datetime.now() - timedelta(days=80),
+    charge_model = ChargeSubmission(
+        date=datetime.now(UTC) - timedelta(days=80),
         car_id=my_car.id,
         car_soc_after=90,
         car_odometer=137,
         cpo_id=my_cpo.id,
         kwh_charged=1500,
-        charge_type='AC',
+        charge_type=ChargeTypeEnum.ac,
     )
     response = test_app.post(
         '/charge', headers={'Authorization': f'Bearer {token}'}, json=charge_model.model_dump(mode='json')
@@ -243,13 +234,13 @@ def test_multiple_charges_and_list(test_app):
     assert len(response_data) == 2, response_data
 
     # Check if we can submit a charge without car_soc_after
-    charge_model = Charge(
-        date=datetime.now(),
+    charge_model = ChargeSubmission(
+        date=datetime.now(UTC),
         car_id=my_car.id,
         car_odometer=137,
         cpo_id=my_cpo.id,
         kwh_charged=1500,
-        charge_type='AC',
+        charge_type=ChargeTypeEnum.ac,
     )
     model_dump = charge_model.model_dump(mode='json')
     del model_dump['car_soc_after']
@@ -290,14 +281,14 @@ def test_authenticated_crud(test_app):
     assert response_data == []
 
     # create charge
-    charge_model = Charge(
-        date=datetime(2020, 1, 1, 14, 00),
+    charge_model = ChargeSubmission(
+        date=datetime(2020, 1, 1, 14, 00, tzinfo=UTC),
         car_id=my_car.id,
         cpo_id=my_cpo.id,
         car_odometer=200,
         car_soc_after=90,
         kwh_charged=1500,
-        charge_type='AC',
+        charge_type=ChargeTypeEnum.ac,
     )
     response = test_app.post(
         '/charge',
@@ -315,7 +306,7 @@ def test_authenticated_crud(test_app):
     assert response.status_code == 201, response.content
     response_data = response.json()
     expected_price = int(round(charge_model.kwh_charged / 100 * my_cpo.default_price))
-    assert response_data['date'] == charge_model.date.isoformat()
+    assert dateparser.parse(response_data['date']) == charge_model.date
     assert response_data['car_id'] == charge_model.car_id
     assert response_data['cpo_id'] == charge_model.cpo_id
     assert response_data['car_odometer'] == charge_model.car_odometer

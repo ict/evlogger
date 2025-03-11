@@ -41,21 +41,13 @@ class Charge(BaseModel):
     car_id: str
     car_name: str | None = None
     car_odometer: int | None = None
-    car_km_driven: int | None = None
-    car_soc_after: int | None = Field(None, description='SoC of battery after charge', ge=0, le=100)
-    kwh_charged: int | None = Field(..., description='Amount of kWh charged in 1/100s of a kWh')
+    car_soc_after: int | None = Field(description='SoC of battery after charge', ge=0, le=100, default=None)
+    kwh_charged: int = Field(..., description='Amount of kWh charged in 1/100s of a kWh')
     cpo_id: str
     cpo_name: str | None = None
     price_total: int | None = Field(description='Total amount paid in 1/100s of currency (e.g. cents)', default=None)
     charge_type: ChargeTypeEnum = Field(..., description='The type of charge, either AC (Wallbox, Wallplug) or DC')
     note: str | None = None
-
-    @model_validator(mode='after')
-    def validate_km(self):
-        """One of the two values should be set"""
-        if self.car_odometer is None and self.car_km_driven is None:
-            raise ValueError('Either car_odometer or car_km_driven must be set')
-        return self
 
     @computed_field
     @property
@@ -68,3 +60,15 @@ class Charge(BaseModel):
 class ChargeInDb(Charge, DbIdMixin):
     owner_id: str
     pass
+
+
+class ChargeSubmission(Charge):
+    car_km_driven: int | None = None
+
+    @model_validator(mode='after')
+    def validate_km(self):
+        """One of the two values should be set"""
+        if self.car_odometer is None and self.car_km_driven is None:
+            msg = 'Either car_odometer or car_km_driven must be set'
+            raise ValueError(msg)
+        return self

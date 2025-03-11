@@ -1,7 +1,7 @@
 import codecs
 import csv
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import BinaryIO
 
 import bson
@@ -12,51 +12,61 @@ from pydantic import ValidationError
 import app.core
 from app.core.config import COLLECTION_CARS, COLLECTION_CHARGES, COLLECTION_CPOS
 from app.core.db import AsyncIOMotorClient
-from app.models.charging import CPO, CarInDb, Charge, ChargeInDb
+from app.models.charging import CPO, CarInDb, ChargeInDb, ChargeSubmission
 from app.operations.crud_base import CPOCrud, CRUDBase, get_collection
 from app.util.timeparse import timeparse
 
 
-async def _check_plausible(db: AsyncIOMotorClient, item: Charge, owner_id: str, is_new: bool = True) -> None:
+async def _check_plausible(
+    db: AsyncIOMotorClient, item: ChargeSubmission, owner_id: str, *, is_new: bool = True
+) -> None:
     """
-    Checks the "foreign keys" of the entity and fills optional (denormalized) fields
+    Check the "foreign keys" of the entity and fills optional (denormalized) fields
     """
     try:
         car_id = bson.ObjectId(item.car_id)
     except TypeError:
-        raise ValueError(f"car_id '{item.car_id}' invalid")
+        msg = f"car_id '{item.car_id}' invalid"
+        raise ValueError(msg) from None
     car = await get_collection(db, COLLECTION_CARS).find_one({'_id': car_id})
     if not car:
-        raise ValueError(f"car_id '{item.car_id}' is invalid")
+        msg = f"car_id '{item.car_id}' is invalid"
+        raise ValueError(msg) from None
     if car.get('owner_id', None) != owner_id:
-        raise ValueError(f"car_id '{item.car_id}' is invalid")
+        msg = f"car_id '{item.car_id}' is invalid"
+        raise ValueError(msg) from None
     item.car_name = car.get('name', '')
 
     try:
         cpo_id = bson.ObjectId(item.cpo_id)
     except TypeError:
-        raise ValueError(f"cpo_id '{item.cpo_id}' invalid")
+        msg = f"cpo_id '{item.cpo_id}' invalid"
+        raise ValueError(msg) from None
     cpo = await get_collection(db, COLLECTION_CPOS).find_one({'_id': cpo_id})
     if not cpo:
-        raise ValueError(f"cpo_id '{item.cpo_id}' is invalid")
+        msg = f"cpo_id '{item.cpo_id}' is invalid"
+        raise ValueError(msg) from None
     if cpo.get('owner_id', None) != owner_id:
-        raise ValueError(f"cpo_id '{item.cpo_id}' is invalid")
+        msg = f"cpo_id '{item.cpo_id}' is invalid"
+        raise ValueError(msg) from None
     item.cpo_name = cpo.get('name', '')
 
     # check if this charge is newer than the last one
     last_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
         {'car_id': item.car_id}, sort=[('date', -1)], limit=1
     )
-    if last_charge and is_new:
-        if item.date < last_charge['date']:
-            raise ValueError(f'Charging date ({item.date}) is older than last charge date: {last_charge["date"]}')
+    if last_charge and is_new and item.date < last_charge['date']:
+        msg = f'Charging date ({item.date}) is older than last charge date: {last_charge["date"]}'
+        raise ValueError(msg)
 
     # Check if the odometer value and price is plausible when editing a charge
     if not is_new:
         if not item.car_odometer:
-            raise ValueError('car_odometer is required when editing a charge')
+            msg = 'car_odometer is required when editing a charge'
+            raise ValueError(msg)
         if item.price_total is None:
-            raise ValueError('price_total is required when editing a charge')
+            msg = 'price_total is required when editing a charge'
+            raise ValueError(msg)
 
         # Find the previous charge before this one and the next one, if they exist
         prev_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
@@ -68,68 +78,66 @@ async def _check_plausible(db: AsyncIOMotorClient, item: Charge, owner_id: str, 
         if prev_charge:
             prev_odo = prev_charge.get('car_odometer', 0)
             if prev_odo > item.car_odometer:
-                raise ValueError(f'car_odometer must be greater than the previous charge ({prev_odo})')
-            item.car_km_driven = item.car_odometer - prev_odo
-        else:
-            item.car_km_driven = item.car_odometer
+                msg = f'car_odometer must be greater than the previous charge ({prev_odo})'
+                raise ValueError(msg)
 
         if next_charge:
             next_odo = next_charge.get('car_odometer', 1_000_000)
             if next_odo < item.car_odometer:
-                raise ValueError(f'car_odometer must be less than the next charge ({next_odo})')
-            # Also need to update the next charge
-            await get_collection(db, COLLECTION_CHARGES).update_one(
-                {'_id': next_charge['_id']}, {'$set': {'car_km_driven': next_odo - item.car_odometer}}
-            )
+                msg = f'car_odometer must be less than the next charge ({next_odo})'
+                raise ValueError(msg)
 
     else:
         if item.price_total is None:
             item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
         if item.car_odometer is None:
             item.car_odometer = car.get('odometer', 0) + item.car_km_driven
-        elif item.car_km_driven is None:
-            item.car_km_driven = item.car_odometer - car.get('odometer', 0)
 
         # everything seems to be fine, also update the car
         await get_collection(db, COLLECTION_CARS).update_one({'_id': car_id}, {'$set': {'odometer': item.car_odometer}})
 
 
-class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
+class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
     def __init__(self, collection_name: str):
-        super().__init__(collection_name, Charge, ChargeInDb)
+        super().__init__(collection_name, ChargeSubmission, ChargeInDb)
 
-    async def create(self, db: AsyncIOMotorClient, item: Charge, owner_id: str | None = None) -> ChargeInDb:
+    async def create(self, db: AsyncIOMotorClient, item: ChargeSubmission, owner_id: str) -> ChargeInDb:
         await _check_plausible(db, item, owner_id)  # raises on errors
         return await super().create(db, item, owner_id)
 
     async def list(
         self,
         db: AsyncIOMotorClient,
-        limit: int = 20,
+        limit: int = 100,
         offset: int = 0,
         owner_id: str | None = None,
         timespan: str | None = None,
         from_date: datetime | None = None,
         to_date: datetime | None = None,
+        car_id: str | None = None,
     ) -> list[ChargeInDb]:
         filters = {}
+        if car_id is not None:
+            filters['car_id'] = car_id
         if owner_id is not None:
             filters['owner_id'] = owner_id
         if timespan:
             filters['date'] = {}
             if to_date or from_date:
-                raise ValueError('to_date and from_date cannot be used alongside timespan')
+                msg = 'to_date and from_date cannot be used alongside timespan'
+                raise ValueError(msg)
             timespan_seconds = timeparse(timespan)
             if not timespan_seconds:
-                raise ValueError(f"Cannot parse timespan value '{timespan}'")
-            date_start = datetime.now() - timedelta(seconds=timespan_seconds)
+                msg = f"Cannot parse timespan value '{timespan}'"
+                raise ValueError(msg)
+            date_start = datetime.now(UTC) - timedelta(seconds=timespan_seconds)
             filters['date']['$gte'] = date_start
         if from_date:
-            if filters.get('date', None) is None:
+            if filters.get('date') is None:
                 filters['date'] = {}
             filters['date']['$gte'] = from_date
         if to_date:
-            if filters.get('date', None) is None:
+            if filters.get('date') is None:
                 filters['date'] = {}
             filters['date']['$lte'] = to_date
         sort = [('date', -1)]
@@ -141,7 +149,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
         return results
 
     async def update_by_id(
-        self, db: AsyncIOMotorClient, by_id: str, new_item: Charge, owner_id: str | None = None
+        self, db: AsyncIOMotorClient, by_id: str, new_item: ChargeSubmission, owner_id: str | None = None
     ) -> ChargeInDb | None:
         update_data = new_item.model_dump()
         old_item = await self.get_by_id(db, by_id)
@@ -151,7 +159,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
             return None
         item_data = old_item.model_dump()
         item_data.update(update_data)
-        check_item = Charge(**item_data)
+        check_item = ChargeSubmission(**item_data)
         await _check_plausible(db, check_item, owner_id, is_new=False)
         await get_collection(db, self.collection).update_one(
             {'_id': bson.ObjectId(by_id)}, {'$set': check_item.model_dump()}
@@ -195,7 +203,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                 logs.append(f'Line {entry_no}: invalid kwh_charged value: {charged_str}')
                 errors = True
                 continue
-            if charged < 100:
+            if charged < 100:  # noqa: SIM108
                 # Assume number is in kWh with decimal places
                 charged = int(round(charged * 100, 2))
             else:
@@ -217,7 +225,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                     logs.append(f'Line {entry_no}: invalid price_total value: {price_str}')
                     errors = True
                     continue
-                if price < 100:
+                if price < 100:  # noqa: SIM108
                     # Assume number is not yet in cents
                     price = int(round(price * 100, 2))
                 else:
@@ -237,10 +245,7 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
                 if not cpo:
                     logs.append(f'Line {entry_no}: Creating new CPO for "{cpo_name}"')
                     # infer default price from entry
-                    if price is not None:
-                        default_price = int(round(price / (charged / 100)))
-                    else:
-                        default_price = 0
+                    default_price = int(round(price / (charged / 100))) if price is not None else 0
                     cpo_obj = CPO(name=cpo_name, default_price=default_price)
                     cpo = await CPOCrud.create(db, cpo_obj, owner_id)
                 line['cpo_id'] = cpo.id
@@ -260,17 +265,17 @@ class ChargeCrud(CRUDBase[Charge, ChargeInDb]):
 
             line['car_id'] = car.id
             try:
-                charge_obj = Charge(**line)
+                charge_obj = ChargeSubmission(**line)
             except ValidationError as err:
                 errors = True
-                logs.append(f'Line {entry_no}: {str(err)}')
+                logs.append(f'Line {entry_no}: {err!s}')
                 continue
             try:
                 charge = await ChargeCrudOp.create(db, charge_obj, owner_id)
                 logs.append(f'Line {entry_no}: Created Charge {charge.id}')
             except ValueError as err:
                 errors = True
-                logs.append(f'Line {entry_no}: {str(err)}')
+                logs.append(f'Line {entry_no}: {err!s}')
                 continue
 
         status = 'completed (errors)' if errors else 'completed'

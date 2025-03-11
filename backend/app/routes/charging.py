@@ -11,7 +11,7 @@ from starlette.status import (
 )
 
 from app.core.db import AsyncIOMotorClient, get_database
-from app.models.charging import CarInDb, Charge, ChargeInDb
+from app.models.charging import CarInDb, ChargeInDb, ChargeSubmission
 from app.models.helpers import SimpleActionResult
 from app.models.users import UserInDb
 from app.operations.charging import ChargeCrudOp
@@ -42,7 +42,9 @@ async def list_charges(
 
 
 @router.post('/', status_code=HTTP_201_CREATED)
-async def create_charge(charge: Charge, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> ChargeInDb:
+async def create_charge(
+    charge: ChargeSubmission, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends
+) -> ChargeInDb:
     try:
         return await ChargeCrudOp.create(db, charge, user.id)
     except ValueError as err:
@@ -59,7 +61,6 @@ async def get_charge_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: Use
 
 @router.delete('/{id}', status_code=HTTP_204_NO_CONTENT)
 async def delete_charge_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends):
-    # FIXME: Other charges need adjustment afterwards
     success = await ChargeCrudOp.delete_by_id(db, id, user.id)
     if not success:
         raise HTTPException(404, 'Not found')
@@ -67,7 +68,7 @@ async def delete_charge_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: 
 
 @router.put('/{id}')
 async def update_charge_by_id(
-    id: str, charge: Charge, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends
+    id: str, charge: ChargeSubmission, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends
 ) -> ChargeInDb:
     try:
         new_charge = await ChargeCrudOp.update_by_id(db, id, charge, user.id)

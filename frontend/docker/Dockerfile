@@ -23,4 +23,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Reset the entrypoint, don't invoke `uv`
 ENTRYPOINT []
-CMD ["streamlit", "run", "--browser.gatherUsageStats", "false", "main.py"]
+CMD ["streamlit", "run", "--browser.gatherUsageStats", "false", "--client.toolbarMode", "viewer", "main.py"]

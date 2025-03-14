@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import requests
 import streamlit as st
+from streamlit_cookies_controller import CookieController
 
 BACKEND_URL = 'http://localhost:8000'
 LOGGER = loguru.logger
@@ -118,18 +119,21 @@ class BackendConnector:
 class ChargeloggerFrontend:
     def __init__(self, backend):
         self.backend = BackendConnector(BACKEND_URL)
+        self.cookies = CookieController()
         self.me: dict | None = None
         self.cars: list[dict] | None = []
         self.cpos: list[dict] | None = []
         self.charges_df: pd.DataFrame | None = None
-        if 'user_token' not in st.session_state:
-            st.session_state.user_token = None
-        else:
+        # Try to load the token from state or cookie
+        st.session_state.user_token = st.session_state.get('user_token') or self.cookies.get('user_token')
+        if st.session_state.user_token:
             self.backend.token = st.session_state.user_token
             try:
                 self.backend.me()
             except ValueError:
                 st.session_state.user_token = None
+                return
+            self.refresh_data()
 
     def refresh_data(self):
         """Refreshes car and CPO data."""
@@ -149,6 +153,7 @@ class ChargeloggerFrontend:
         if self.backend.login(st.session_state.username, st.session_state.password):
             st.session_state.user_token = self.backend.token
             st.session_state.username = self.backend.user
+            self.cookies.set('user_token', self.backend.token)
         else:
             st.error('Login failed')
 
@@ -156,16 +161,19 @@ class ChargeloggerFrontend:
         """Logs out the user."""
         st.session_state.user_token = None
         st.session_state.username = None
-        st.rerun()
+        if self.cookies.get('user_token'):
+            self.cookies.remove('user_token')
 
     def check_authentication(self):
         """Handles login and authentication state."""
         if st.session_state.user_token is None:
             LOGGER.info('User not authenticated, showing login form')
-            st.title('Login')
-            st.text_input('Username', key='username')
-            st.text_input('Password', type='password', key='password')
-            st.button('Login', on_click=self.try_login)
+            center = st.columns(3)
+            with center[1], st.form('login_form'):
+                st.title('Login')
+                st.text_input('Username', key='username')
+                st.text_input('Password', type='password', key='password')
+                st.form_submit_button('Login', on_click=self.try_login)
             return False  # Not authenticated
 
         LOGGER.info('User authenticated, fetching data')
@@ -251,7 +259,6 @@ class ChargeloggerFrontend:
     def load_charges(self):
         """Fetches and processes charge data."""
         selected_timeframe = st.session_state.selected_timeframe
-        LOGGER.info('Loading charges for {}', selected_timeframe)
         if selected_timeframe == 'Last month':
             timeframe = datetime.datetime.now(datetime.UTC)
             timeframe = timeframe.replace(month=timeframe.month - 1)
@@ -260,7 +267,6 @@ class ChargeloggerFrontend:
             timeframe = timeframe.replace(year=timeframe.year - 1)
         else:
             timeframe = None
-        LOGGER.info('Timeframe: {}', timeframe)
         if not self.cars:
             self.refresh_data()
             return
@@ -474,9 +480,9 @@ class ChargeloggerFrontend:
 
 
 if __name__ == '__main__':
+    st.set_page_config(page_title='Chargelogger', page_icon='🔌', layout='wide')
     frontend = ChargeloggerFrontend(BackendConnector(BACKEND_URL))
     LOGGER.info('Starting application')
-    st.set_page_config(page_title='Chargelogger', page_icon='🔌', layout='wide')
 
     if not frontend.check_authentication():
         LOGGER.info('User not authenticated')

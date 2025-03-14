@@ -10,4 +10,5 @@ dependencies = [
     "plotly>=6.0.0",
     "requests>=2.32.3",
     "streamlit>=1.43.1",
+    "streamlit-cookies-controller>=0.0.4",
 ]

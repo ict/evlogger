@@ -1,4 +1,6 @@
 import datetime
+import os
+import sys
 import time
 
 import loguru
@@ -8,7 +10,6 @@ import requests
 import streamlit as st
 from streamlit_cookies_controller import CookieController
 
-BACKEND_URL = 'http://localhost:8000'
 LOGGER = loguru.logger
 
 
@@ -118,7 +119,7 @@ class BackendConnector:
 
 class ChargeloggerFrontend:
     def __init__(self, backend):
-        self.backend = BackendConnector(BACKEND_URL)
+        self.backend = BackendConnector(backend)
         self.cookies = CookieController()
         self.me: dict | None = None
         self.cars: list[dict] | None = []
@@ -480,8 +481,14 @@ class ChargeloggerFrontend:
 
 
 if __name__ == '__main__':
+    backend_url = 'http://localhost:8000'
+    if 'CHARGERLOGGER_BACKEND' in os.environ:
+        backend_url = os.environ['CHARGERLOGGER_BACKEND']
+    if len(sys.argv) > 1:
+        backend_url = sys.argv[1]
+
     st.set_page_config(page_title='Chargelogger', page_icon='🔌', layout='wide')
-    frontend = ChargeloggerFrontend(BackendConnector(BACKEND_URL))
+    frontend = ChargeloggerFrontend(backend_url)
     LOGGER.info('Starting application')
 
     if not frontend.check_authentication():

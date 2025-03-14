@@ -482,8 +482,7 @@ class ChargeloggerFrontend:
 
 if __name__ == '__main__':
     backend_url = 'http://localhost:8000'
-    if 'CHARGERLOGGER_BACKEND' in os.environ:
-        backend_url = os.environ['CHARGERLOGGER_BACKEND']
+    backend_url = os.environ.get('CHARGELOGGER_BACKEND', backend_url)
     if len(sys.argv) > 1:
         backend_url = sys.argv[1]
 

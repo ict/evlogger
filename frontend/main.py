@@ -69,18 +69,9 @@ class BackendConnector:
         ]
 
     def get_charges(self, car_id, timeframe):
-        if timeframe == 'Last month':
-            tf = datetime.datetime.now(datetime.UTC)
-            tf = tf.replace(month=tf.month - 1)
-        elif timeframe == 'Last year':
-            tf = datetime.datetime.now(datetime.UTC)
-            tf = tf.replace(year=tf.year - 1)
-        else:
-            tf = None
-
         req_data = {'limit': 1000}
-        if tf:
-            req_data['from_date'] = tf.isoformat()
+        if timeframe:
+            req_data['from_date'] = timeframe.isoformat()
         all_charges = self._do_request('GET', 'charge/', data=req_data)
         return [charge for charge in all_charges if charge['car_id'] == car_id]
 
@@ -120,111 +111,246 @@ class BackendConnector:
     def delete_charge(self, charge_id):
         try:
             return self._do_request('DELETE', f'charge/{charge_id}')
-            return None
         except ValueError as err:
             return err.args[0]
 
 
-BACKEND = BackendConnector(BACKEND_URL)
+class ChargeloggerFrontend:
+    def __init__(self, backend):
+        self.backend = BackendConnector(BACKEND_URL)
+        self.me: dict | None = None
+        self.cars: list[dict] | None = []
+        self.cpos: list[dict] | None = []
+        self.charges_df: pd.DataFrame | None = None
+        if 'user_token' not in st.session_state:
+            st.session_state.user_token = None
+        else:
+            self.backend.token = st.session_state.user_token
+            try:
+                self.backend.me()
+            except ValueError:
+                st.session_state.user_token = None
 
+    def refresh_data(self):
+        """Refreshes car and CPO data."""
+        try:
+            self.cars = self.backend.get_cars()
+            self.cpos = self.backend.get_cpos()
+            self.me = self.backend.me()
+        except ValueError as err:
+            st.error(err.args[0])
+            self.me = None
+            self.cars = None
+            self.cpos = None
+            st.session_state.user_token = None
 
-# Function to handle login
-def login():
-    username = st.session_state.get('username', '')
-    password = st.session_state.get('password', '')
+    def try_login(self):
+        """Attempts to log in the user."""
+        if self.backend.login(st.session_state.username, st.session_state.password):
+            st.session_state.user_token = self.backend.token
+            st.session_state.username = self.backend.user
+        else:
+            st.error('Login failed')
 
-    logged_in = BACKEND.login(username, password)
-    if logged_in:
-        st.session_state.user_token = BACKEND.token
-    else:
-        st.error('Invalid username or password')
-
-
-def logout():
-    st.session_state.user_token = None
-
-
-def main():
-    st.set_page_config(layout='wide')
-    # Initialize session state for authentication
-    if 'user_token' not in st.session_state:
+    def logout(self):
+        """Logs out the user."""
         st.session_state.user_token = None
+        st.session_state.username = None
+        st.rerun()
 
-    # Display login form if not authenticated
-    if st.session_state.user_token is None:
-        st.title('Login')
-        st.text_input('Username', key='username')
-        st.text_input('Password', type='password', key='password')
-        st.button('Login', on_click=login)
+    def check_authentication(self):
+        """Handles login and authentication state."""
+        if st.session_state.user_token is None:
+            LOGGER.info('User not authenticated, showing login form')
+            st.title('Login')
+            st.text_input('Username', key='username')
+            st.text_input('Password', type='password', key='password')
+            st.button('Login', on_click=self.try_login)
+            return False  # Not authenticated
 
-    else:
-        # Main app content after login
-        BACKEND.token = st.session_state.user_token
-        me = BACKEND.me()
-        st.session_state.username = me['username']
+        LOGGER.info('User authenticated, fetching data')
+        self.backend.token = st.session_state.user_token
+        try:
+            me = self.backend.me()
+            self.refresh_data()
+            LOGGER.info('User authenticated as {}', me.get('username'))
+            if me:
+                st.session_state.username = me['username']
+                self.me = me
+                return True  # Authenticated
+        except ValueError:
+            st.session_state.user_token = None
+            return False
 
-        # Get a list of CPOs and their ids
-        cpos = BACKEND.get_cpos()
-        cpo_ids = {cpo['name']: cpo['id'] for cpo in cpos}
-
-        @st.dialog('CPO Details')
-        def cpo_details():
-            cpo_name = st.session_state.selected_cpo
-            cpo_id = cpo_ids[cpo_name]
-            cpo = next(cpo for cpo in cpos if cpo['id'] == cpo_id)
-            columns_config = {
-                'name': st.column_config.TextColumn('Name', required=True),
-                'id': None,
-                'owner_id': None,
-                'default_price': st.column_config.NumberColumn('Default Price', format='%d Cents', required=True),
-            }
-            st.data_editor([cpo], column_config=columns_config, key='cpo_editor')
-            if st.button('Save changes'):
-                cpo_new = st.session_state.cpo_editor['edited_rows'][0]
-                cpo['name'] = cpo_new.get('name', cpo['name'])
-                cpo['default_price'] = cpo_new.get('default_price', cpo['default_price'])
-                if msg := BACKEND.edit_cpo(cpo):
-                    st.error(msg)
-                else:
-                    st.balloons()
-                    time.sleep(1)
-                    st.rerun()
-
-        def cpo_details_click():
-            if st.session_state.selected_cpo:
-                cpo_details()
-
+    def configure_sidebar(self):
+        """Configures the sidebar for selecting cars, CPOs, and timeframe."""
+        if not all((self.cars, self.cpos, self.me)):
+            self.refresh_data()
+            return
         with st.sidebar:
             st.header('View settings')
-            cars = BACKEND.get_cars()
-            car_name = st.selectbox('Select a car', [car['Name'] for car in cars], key='selected_car')
+            car_names = sorted([car['Name'] for car in self.cars])
+            st.selectbox('Select a car', car_names, key='selected_car')
             st.selectbox(
                 'See CPO Details',
-                [cpo['name'] for cpo in cpos],
+                sorted([cpo['name'] for cpo in self.cpos], key=str.casefold),
                 key='selected_cpo',
                 index=None,
-                on_change=cpo_details_click,
+                on_change=self.handle_cpo_selection,
             )
-            timeframe = st.radio('Timeframe', ['Last month', 'Last year', 'All time'], key='timeframe', index=1)
+            st.radio(
+                'Timeframe',
+                ['Last month', 'Last year', 'All time'],
+                key='selected_timeframe',
+                index=1,
+                on_change=self.load_charges,
+            )
             st.divider()
-            st.write(f'Logged in as {me["username"]}')
-            st.button('Logout', on_click=logout)
+            st.write(f'Logged in as {self.me["username"]}')
+            st.button('Logout', on_click=self.logout)
 
+    def show_car_info(self):
+        car_name = st.session_state.selected_car
+        if not self.cars:
+            self.refresh_data()
+            return
         st.title(f'{car_name} Overview')
-        st.dataframe([car for car in cars if car['Name'] == car_name], hide_index=True)
+        st.dataframe([car for car in self.cars if car['Name'] == car_name], hide_index=True)
 
-        st.header('Charges')
-        charges_raw = BACKEND.get_charges(next(car['id'] for car in cars if car['Name'] == car_name), timeframe)
+    def handle_cpo_selection(self):
+        """Handles selection of a CPO."""
+        if st.session_state.selected_cpo:
+            self.cpo_details()
 
+    @st.dialog('CPO Details')
+    def cpo_details(self):
+        """Displays CPO details and allows editing."""
+        if not self.cpos:
+            return
+        cpo_ids = {cpo['name']: cpo['id'] for cpo in self.cpos}
+        cpo_name = st.session_state.selected_cpo
+        cpo = next(cpo for cpo in self.cpos if cpo['id'] == cpo_ids[cpo_name])
+        columns_config = {
+            'name': st.column_config.TextColumn('Name', required=True),
+            'default_price': st.column_config.NumberColumn('Default Price', format='%.2f €', required=True),
+            'id': None,
+            'owner_id': None,
+        }
+        st.data_editor([cpo], key='cpo_editor', column_config=columns_config)
+        if st.button('Save changes'):
+            updated_data = st.session_state.cpo_editor['edited_rows'][0]
+            cpo['name'] = updated_data.get('name', cpo['name'])
+            cpo['default_price'] = updated_data.get('default_price', cpo['default_price'])
+            if msg := self.backend.edit_cpo(cpo):
+                st.error(msg)
+            else:
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+
+    def load_charges(self):
+        """Fetches and processes charge data."""
+        selected_timeframe = st.session_state.selected_timeframe
+        LOGGER.info('Loading charges for {}', selected_timeframe)
+        if selected_timeframe == 'Last month':
+            timeframe = datetime.datetime.now(datetime.UTC)
+            timeframe = timeframe.replace(month=timeframe.month - 1)
+        elif selected_timeframe == 'Last year':
+            timeframe = datetime.datetime.now(datetime.UTC)
+            timeframe = timeframe.replace(year=timeframe.year - 1)
+        else:
+            timeframe = None
+        LOGGER.info('Timeframe: {}', timeframe)
+        if not self.cars:
+            self.refresh_data()
+            return
+        car_name = st.session_state.selected_car
+        charges_raw = self.backend.get_charges(
+            next(car['id'] for car in self.cars if car['Name'] == car_name), timeframe
+        )
         charges_df = pd.DataFrame(charges_raw)
-        charges_df['kwh_charged'] = charges_df['kwh_charged'] / 100
-        charges_df['price_total'] = charges_df['price_total'] / 100
-        charges_df['price_per_kwh'] = charges_df['price_per_kwh'] / 100
+        charges_df['kwh_charged'] /= 100
+        charges_df['price_total'] /= 100
+        charges_df['price_per_kwh'] /= 100
         charges_df['date'] = pd.to_datetime(charges_df['date'])
         charges_df = charges_df.set_index('date')
-        # Calculate the distance driven between charges
         charges_df['car_km_driven'] = charges_df['car_odometer'][::-1].diff().fillna(0)[::-1]
+        self.charges_df = charges_df
 
+    @st.dialog('Review Changes')
+    def review_charge_edits(self):
+        """Handles reviewing and saving charge edits."""
+        car_name = st.session_state.selected_car
+        changeset = st.session_state.charges_editor
+        cpo_ids = {cpo['name']: cpo['id'] for cpo in self.cpos}
+        if not all((changeset, self.charges_df is not None, self.cars)):
+            st.error('No changes to review or data error. Try reloading the page.')
+            return
+
+        to_change = []
+        to_add = []
+        to_delete = []
+        for edit_row, changes in changeset.get('edited_rows', {}).items():
+            log = []
+            affected_row = self.charges_df.iloc[edit_row].to_dict()
+            affected_row['date'] = str(self.charges_df.index[edit_row])
+            st.subheader(f'Charge on {affected_row["date"]}')
+            for key, new_value in changes.items():
+                log.append(f'- {key}:  {affected_row[key]} -> **{new_value}**')
+                affected_row[key] = new_value
+            if 'cpo_name' in changes:
+                log.append(f'- cpo_id: {affected_row["cpo_id"]} -> **{cpo_ids[changes["cpo_name"]]}**')
+                affected_row['cpo_id'] = cpo_ids[changes['cpo_name']]
+            st.info('\n'.join(log))
+            to_change.append(affected_row)
+        for new_row in changeset.get('added_rows', []):
+            st.subheader('New Charge')
+            new_charge = {
+                'car_id': next(car['id'] for car in self.cars if car['Name'] == car_name),
+            }
+            for key, value in new_row.items():
+                if key == 'cpo_name':
+                    new_charge['cpo_id'] = cpo_ids[value]
+                if key == '_index':
+                    new_charge['date'] = value
+                    continue
+                new_charge[key] = value
+            st.write(new_charge)
+            to_add.append(new_charge)
+        if changeset.get('deleted_rows'):
+            st.subheader('Deleted Charges')
+            lines = []
+            for row in changeset.get('deleted_rows'):
+                affected_row = self.charges_df.iloc[row].to_dict()
+                affected_row['date'] = str(self.charges_df.index[row])
+                to_delete.append(affected_row['id'])
+                lines.append(f'- Charge at {affected_row["date"]} {affected_row["kwh_charged"]} kWh')
+            st.warning('\n'.join(lines))
+        if st.button('Save changes'):
+            success = True
+            for row in to_change:
+                if msg := self.backend.edit_charge(row):
+                    st.error(msg)
+                    success = False
+            for row in to_add:
+                if msg := self.backend.add_charge(row):
+                    st.error(msg)
+                    success = False
+            for row in to_delete:
+                if msg := self.backend.delete_charge(row):
+                    st.error(msg)
+                    success = False
+            if success:
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+
+    def show_charges(self):
+        if not all((self.charges_df is not None, self.cpos is not None)):
+            self.refresh_data()
+            return
+
+        cpo_ids = {cpo['name']: cpo['id'] for cpo in self.cpos or []}
         columns_config = {
             'date': st.column_config.DateColumn('Date', required=True, disabled=False),
             'car_odometer': st.column_config.NumberColumn('Odometer (km)', format='localized', required=True),
@@ -255,90 +381,30 @@ def main():
             'note',
         ]
 
-        @st.dialog('Review Changes')
-        def check_edits():
-            changeset = st.session_state.charges_editor
-            to_change = []
-            to_add = []
-            to_delete = []
-            for edit_row, changes in changeset.get('edited_rows', {}).items():
-                log = []
-                affected_row = charges_df.iloc[edit_row].to_dict()
-                affected_row['date'] = str(charges_df.index[edit_row])
-                st.subheader(f'Charge on {affected_row["date"]}')
-                for key, new_value in changes.items():
-                    log.append(f'- {key}:  {affected_row[key]} -> **{new_value}**')
-                    affected_row[key] = new_value
-                if 'cpo_name' in changes:
-                    log.append(f'- cpo_id: {affected_row["cpo_id"]} -> **{cpo_ids[changes["cpo_name"]]}**')
-                    affected_row['cpo_id'] = cpo_ids[changes['cpo_name']]
-                st.info('\n'.join(log))
-                to_change.append(affected_row)
-            for new_row in changeset.get('added_rows', []):
-                st.subheader('New Charge')
-                new_charge = {
-                    'car_id': next(car['id'] for car in cars if car['Name'] == car_name),
-                }
-                for key, value in new_row.items():
-                    if key == 'cpo_name':
-                        new_charge['cpo_id'] = cpo_ids[value]
-                    if key == '_index':
-                        new_charge['date'] = value
-                        continue
-                    new_charge[key] = value
-                st.write(new_charge)
-                to_add.append(new_charge)
-            if changeset.get('deleted_rows'):
-                st.subheader('Deleted Charges')
-                lines = []
-                for row in changeset.get('deleted_rows'):
-                    affected_row = charges_df.iloc[row].to_dict()
-                    affected_row['date'] = str(charges_df.index[row])
-                    to_delete.append(affected_row['id'])
-                    lines.append(f'- Charge at {affected_row["date"]} {affected_row["kwh_charged"]} kWh')
-                st.warning('\n'.join(lines))
-            if st.button('Save changes'):
-                success = True
-                for row in to_change:
-                    if msg := BACKEND.edit_charge(row):
-                        st.error(msg)
-                        success = False
-                for row in to_add:
-                    if msg := BACKEND.add_charge(row):
-                        st.error(msg)
-                        success = False
-                for row in to_delete:
-                    if msg := BACKEND.delete_charge(row):
-                        st.error(msg)
-                        success = False
-                if success:
-                    st.balloons()
-                    time.sleep(1)
-                    st.rerun()
-
         allow_edit = st.checkbox('Allow editing', key='allow_edit')
         if allow_edit:
             st.data_editor(
-                charges_df,
+                self.charges_df,
                 column_config=columns_config,
                 column_order=columns_order,
                 key='charges_editor',
                 num_rows='dynamic',
             )
-            st.button('Review changes', on_click=check_edits)
+            st.button('Review changes', on_click=self.review_charge_edits)
         else:
-            st.dataframe(charges_df, column_config=columns_config, column_order=columns_order)
+            st.dataframe(self.charges_df, column_config=columns_config, column_order=columns_order)
 
-        st.header('Statistics')
-
+    def display_statistics(self):
+        """Displays statistics for charge data."""
+        timeframe = st.session_state.selected_timeframe
         if timeframe == 'All time':
-            # Show metrics for each year
-            years = charges_df.index.year.unique()
+            years = self.charges_df.index.year.unique()
             prev_year = None
+
             for year in sorted(years):
-                year_df = charges_df[charges_df.index.year == year]
+                year_df = self.charges_df[self.charges_df.index.year == year]
                 st.subheader(f'{year}')
-                a, b, c, d = st.columns(4)
+                a, b, c, d, e = st.columns(5)
                 total_km = year_df['car_km_driven'].sum()
                 total_price = round(year_df['price_total'].sum(), 2)
                 price_100_km = round(year_df['price_total'].sum() / year_df['car_km_driven'].sum() * 100, 2)
@@ -369,12 +435,22 @@ def main():
                     'price_100_km': price_100_km,
                 }
 
+    def display_charging_distribution(self):
+        """Displays charging distribution statistics."""
+        if self.charges_df is None:
+            self.refresh_data()
+            return
+
         st.subheader('Charging Distribution')
+
+        ac_charging = self.charges_df[self.charges_df['charge_type'] == 'AC']['kwh_charged'].sum()
+        dc_charging = self.charges_df[self.charges_df['charge_type'] == 'DC']['kwh_charged'].sum()
+
         acdc_cols = st.columns(5)
 
         # Aggregate AC vs DC charging
-        ac_charging = charges_df[charges_df['charge_type'] == 'AC']['kwh_charged'].sum()
-        dc_charging = charges_df[charges_df['charge_type'] == 'DC']['kwh_charged'].sum()
+        ac_charging = self.charges_df[self.charges_df['charge_type'] == 'AC']['kwh_charged'].sum()
+        dc_charging = self.charges_df[self.charges_df['charge_type'] == 'DC']['kwh_charged'].sum()
 
         total_charging = ac_charging + dc_charging
         ac_dc_ratio = ac_charging / total_charging if total_charging > 0 else 0  # Avoid division by zero
@@ -386,38 +462,31 @@ def main():
         with acdc_cols[2]:
             st.metric('AC/DC Ratio', f'{ac_dc_ratio:.2%}', border=True)  # Display as percentage
 
-        # Plot AC vs DC charging in a pie chart
-        fig = px.pie(
-            names=['AC', 'DC'],
-            values=[ac_charging, dc_charging],
-            color=['AC', 'DC'],
-            color_discrete_map={'AC': '#66b3ff', 'DC': '#ff6666'},
-        )
-        # Adjust size
-        fig.update_layout(width=400, height=400, showlegend=True)  # Set smaller size
-        fig.update_traces(textinfo='label+percent', textfont_size=14)  # Set text size
-        with st.expander('Charging Distribution'):
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Calculate monthly totals
-        st.subheader('Monthly Totals')
-        monthly_totals = charges_df.resample('ME').agg({'kwh_charged': 'sum', 'car_km_driven': 'sum'})
-
-        # Rename the columns for display
-        monthly_totals['consumption_kwh_per_100km'] = (
-            monthly_totals['kwh_charged'] / monthly_totals['car_km_driven'] * 100
-        )
-        monthly_totals.index = monthly_totals.index.strftime('%Y-%m')
-        monthly_totals = monthly_totals.rename(columns={'kwh_charged': 'kWh charged', 'car_km_driven': 'km driven'})
-
-        st.bar_chart(
-            monthly_totals['consumption_kwh_per_100km'],
-            x_label='Month',
-            y_label='kWh / 100km',
-            use_container_width=True,
-        )
-        st.line_chart(monthly_totals, x_label='Month', y=['kWh charged', 'km driven'])
+        with acdc_cols[0]:
+            fig = px.pie(
+                names=['AC', 'DC'],
+                values=[ac_charging, dc_charging],
+                color=['AC', 'DC'],
+                color_discrete_map={'AC': '#66b3ff', 'DC': '#ff6666'},
+            )
+            with st.expander('Charging Distribution'):
+                st.plotly_chart(fig)
 
 
 if __name__ == '__main__':
-    main()
+    frontend = ChargeloggerFrontend(BackendConnector(BACKEND_URL))
+    LOGGER.info('Starting application')
+    st.set_page_config(page_title='Chargelogger', page_icon='🔌', layout='wide')
+
+    if not frontend.check_authentication():
+        LOGGER.info('User not authenticated')
+
+    else:
+        LOGGER.info('Displaying UI')
+        frontend.configure_sidebar()
+        frontend.show_car_info()
+
+        frontend.load_charges()
+        frontend.show_charges()
+        frontend.display_charging_distribution()
+        frontend.display_statistics()

@@ -241,7 +241,7 @@ class ChargeloggerFrontend:
         cpo = next(cpo for cpo in self.cpos if cpo['id'] == cpo_ids[cpo_name])
         columns_config = {
             'name': st.column_config.TextColumn('Name', required=True),
-            'default_price': st.column_config.NumberColumn('Default Price', format='%.2f €', required=True),
+            'default_price': st.column_config.NumberColumn('Default Price', format='0.%d €', required=True),
             'id': None,
             'owner_id': None,
         }
@@ -488,7 +488,7 @@ if __name__ == '__main__':
 
     st.set_page_config(page_title='Chargelogger', page_icon='🔌', layout='wide')
     frontend = ChargeloggerFrontend(backend_url)
-    LOGGER.info('Starting application')
+    LOGGER.info('Starting application with backend at {}', backend_url)
 
     if not frontend.check_authentication():
         LOGGER.info('User not authenticated')

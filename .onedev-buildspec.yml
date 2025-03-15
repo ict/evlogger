@@ -1,0 +1,66 @@
+version: 38
+imports:
+- projectPath: koala/common/step-templates
+  revision: main
+  accessTokenSecret: ci_registry_token
+jobs:
+- name: Build latest
+  steps:
+  - !CheckoutStep
+    name: Clone
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    cloneDepth: 1
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !BuildImageStep
+    name: Build backend
+    buildPath: backend
+    dockerfile: backend/docker/Dockerfile
+    output: !RegistryOutput
+      tags: '@server@/@project_path@/chargelogger-backend:latest'
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !BuildImageStep
+    name: Build frontend
+    buildPath: frontend
+    dockerfile: frontend/docker/Dockerfile
+    output: !RegistryOutput
+      tags: '@server@/@project_path@/chargelogger-frontend:latest'
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  triggers:
+  - !BranchUpdateTrigger
+    branches: main
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
+- name: Build unstable
+  steps:
+  - !CheckoutStep
+    name: Clone
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    cloneDepth: 1
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !BuildImageStep
+    name: Build backend
+    buildPath: backend
+    dockerfile: backend/docker/Dockerfile
+    output: !RegistryOutput
+      tags: '@server@/@project_path@/chargelogger-backend:unstable'
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !BuildImageStep
+    name: Build frontend
+    buildPath: frontend
+    dockerfile: frontend/docker/Dockerfile
+    output: !RegistryOutput
+      tags: '@server@/@project_path@/chargelogger-frontend:unstable'
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  triggers:
+  - !BranchUpdateTrigger
+    branches: -main
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400

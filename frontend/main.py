@@ -89,6 +89,14 @@ class BackendConnector:
         except ValueError as err:
             return err.args[0]
 
+    def add_cpo(self, cpo_dict):
+        cpo_dict = {"name": cpo_dict["name"].strip(), "default_price": cpo_dict["default_price"]}
+        try:
+            self._do_request('POST', 'cpo/', data=cpo_dict)
+            return None
+        except ValueError as err:
+            return err.args[0]
+
     def add_charge(self, charge_dict):
         api_dict = charge_dict.copy()
         api_dict['kwh_charged'] = int(api_dict['kwh_charged'] * 100)
@@ -207,6 +215,7 @@ class ChargeloggerFrontend:
                 index=None,
                 on_change=self.handle_cpo_selection,
             )
+            st.button('Add CPO', on_click=self.add_cpo)
             st.radio(
                 'Timeframe',
                 ['Last month', 'Last year', 'All time'],
@@ -251,6 +260,28 @@ class ChargeloggerFrontend:
             cpo['name'] = updated_data.get('name', cpo['name'])
             cpo['default_price'] = updated_data.get('default_price', cpo['default_price'])
             if msg := self.backend.edit_cpo(cpo):
+                st.error(msg)
+            else:
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+
+    @st.dialog('Add CPO')
+    def add_cpo(self):
+        """Adds a new CPO."""
+        columns_config = {
+            'name': st.column_config.TextColumn('Name', required=True),
+            'default_price': st.column_config.NumberColumn('Default Price', format='0.%d €', required=True),
+        }
+        empty_column = {'name': '', 'default_price': 0}
+        st.data_editor([empty_column], key='cpo_new', column_config=columns_config)
+        if st.button('Add'):
+            if not st.session_state.cpo_new.get('edited_rows'):
+                st.error('No data entered')
+            new_cpo = st.session_state.cpo_new['edited_rows'][0]
+            if not new_cpo.get('name').strip():
+                st.error('Name is required and cannot be empty')
+            if msg := self.backend.add_cpo(new_cpo):
                 st.error(msg)
             else:
                 st.balloons()

@@ -442,10 +442,11 @@ class ChargeloggerFrontend:
             for year in sorted(years):
                 year_df = self.charges_df[self.charges_df.index.year == year]
                 st.subheader(f'{year}')
-                a, b, c, d, e = st.columns(5)
+                a, b, c, d, _ = st.columns(5)
                 total_km = year_df['car_km_driven'].sum()
                 total_price = round(year_df['price_total'].sum(), 2)
                 price_100_km = round(year_df['price_total'].sum() / year_df['car_km_driven'].sum() * 100, 2)
+                kwh_per_100_km = round(year_df['kwh_charged'].sum() / year_df['car_km_driven'].sum() * 100, 2)
                 a.metric(
                     'Total Distance',
                     f'{total_km} km',
@@ -467,11 +468,35 @@ class ChargeloggerFrontend:
                     delta=round(price_100_km - prev_year['price_100_km'], 2) if prev_year else None,
                     delta_color='inverse',
                 )
+                d.metric(
+                    'kWh / 100 km',
+                    f'{kwh_per_100_km}',
+                    border=True,
+                    delta=round(kwh_per_100_km - prev_year['kwh_per_100_km'], 2) if prev_year else None,
+                    delta_color='inverse',
+                )
                 prev_year = {
                     'total_km': total_km,
                     'total_price': total_price,
                     'price_100_km': price_100_km,
+                    'kwh_per_100_km': kwh_per_100_km,
                 }
+        else:
+            if self.charges_df is None:
+                return
+            st.subheader('Statistics')
+            a, b, c, d = st.columns(4)
+            total_km = self.charges_df['car_km_driven'].sum()
+            total_price = round(self.charges_df['price_total'].sum(), 2)
+            price_100_km = round(self.charges_df['price_total'].sum() / self.charges_df['car_km_driven'].sum() * 100, 2)
+            kwh_per_100_km = round(
+                self.charges_df['kwh_charged'].sum() / self.charges_df['car_km_driven'].sum() * 100, 2
+            )
+            a, b, c, d, _ = st.columns(5)
+            a.metric('Total Distance', f'{total_km} km', border=True)
+            b.metric('Total Price', f'{total_price} €', border=True)
+            c.metric('Price per 100 km', f'{price_100_km} €', border=True)
+            d.metric('kWh / 100 km', f'{kwh_per_100_km}', border=True)
 
     def display_charging_distribution(self):
         """Displays charging distribution statistics."""

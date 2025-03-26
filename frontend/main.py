@@ -1,3 +1,10 @@
+"""
+Chargelogger Streamlit frontend.
+"""
+
+# Ruff gets confused by loguru's logger, so we need to disable the check for this file.
+# ruff: noqa: PLE1205
+
 import datetime
 import os
 import sys
@@ -14,7 +21,19 @@ LOGGER = loguru.logger
 
 
 class BackendConnector:
+    """
+    Backend connector for the Chargelogger API.
+
+    Abstracts the API calls to the Chargelogger backend and handles error checking.
+    """
+
     def __init__(self, url):
+        """
+        Initialize the backend connector.
+
+        Args:
+            url (str): The base URL of the Chargelogger backend API.
+        """
         self.url = url
         self.user = None
         self.token = None
@@ -35,17 +54,24 @@ class BackendConnector:
             return None
         if 200 <= response.status_code < 300:
             return response.json()
-        LOGGER.error('Error {}: {}', response.status_code, response.text)  # noqa: PLE1205
+        LOGGER.error('Error {}: {}', response.status_code, response.text)
         msg = f'Error {response.status_code}: {response.text}'
         raise ValueError(msg)
 
     def login(self, username, password):
+        """
+        Log in to the Chargelogger backend. A prerequisite for all other API calls.
+
+        Args:
+            username (str): The username to log in with.
+            password (str): The password to log in with.
+        """
         # We cannot use _do_request here as this is a form-encoded request
         response = requests.post(
             f'{self.url}/users/token', data={'username': username, 'password': password}, timeout=10
         )
         if response.status_code != 200:
-            LOGGER.error('Error {}: {}', response.status_code, response.text)  # noqa: PLE1205
+            LOGGER.error('Error {}: {}', response.status_code, response.text)
             return False
         res = response.json()
         self.token = res['access_token']
@@ -53,10 +79,24 @@ class BackendConnector:
         return True
 
     def me(self):
+        """
+        Get the user's own profile.
+
+        Returns:
+            dict: The user's profile data.
+        """
         return self._do_request('GET', 'users/me')
 
     def get_cars(self):
+        """
+        Get a list of all cars of the logged in user.
+
+        Returns:
+            list[dict]: A list of all cars.
+        """
         cars = self._do_request('GET', 'car/')
+        if not cars:
+            return []
         return [
             {
                 'Name': car['name'],
@@ -71,54 +111,127 @@ class BackendConnector:
         ]
 
     def get_charges(self, car_id, timeframe):
+        """
+        Get all charges for a specific car.
+
+        Args:
+            car_id (int): The ID of the car to get charges for.
+            timeframe (datetime.datetime): The earliest date to get charges from.
+
+        Returns:
+            list[dict]: A list of all charges for the car.
+        """
         req_data = {'limit': 1000}
         if timeframe:
             req_data['from_date'] = timeframe.isoformat()
         all_charges = self._do_request('GET', 'charge/', data=req_data)
+        if not all_charges:
+            return []
         return [charge for charge in all_charges if charge['car_id'] == car_id]
 
     def get_cpos(self):
+        """
+        Get all CPOs of the logged in user.
+
+        Returns:
+            list[dict]: A list of all CPOs.
+        """
         return self._do_request('GET', 'cpo/', data={'limit': 100})
 
     def edit_cpo(self, cpo_dict):
+        """
+        Edit a CPO.
+
+        Args:
+            cpo_dict (dict): The CPO data to edit. Must contain an 'id' key.
+
+        Returns:
+            str: An error message if the edit failed, otherwise None.
+        """
+        if 'id' not in cpo_dict:
+            msg = 'CPO ID is required'
+            raise ValueError(msg)
         api_dict = cpo_dict.copy()
         del api_dict['id']
         try:
             self._do_request('PUT', f'cpo/{cpo_dict["id"]}', data=api_dict)
-            return None
         except ValueError as err:
             return err.args[0]
+        else:
+            return None
 
     def add_cpo(self, cpo_dict):
-        cpo_dict = {"name": cpo_dict["name"].strip(), "default_price": cpo_dict["default_price"]}
+        """
+        Create a new CPO.
+
+        Args:
+            cpo_dict (dict): The CPO data to create. Must contain a 'name' and 'default_price' key.
+
+        Returns:
+            str: An error message if the creation failed, otherwise None.
+        """
+        if 'name' not in cpo_dict or 'default_price' not in cpo_dict:
+            msg = 'Name and default price are required'
+            raise ValueError(msg)
+        cpo_dict = {'name': cpo_dict['name'].strip(), 'default_price': cpo_dict['default_price']}
         try:
             self._do_request('POST', 'cpo/', data=cpo_dict)
-            return None
         except ValueError as err:
             return err.args[0]
+        else:
+            return None
 
     def add_charge(self, charge_dict):
+        """
+        Add a new charge. Handles conversion of float values to integer cents.
+
+        Args:
+            charge_dict (dict): The charge data to add.
+
+        Returns:
+            str: An error message if the creation failed, otherwise None.
+        """
         api_dict = charge_dict.copy()
         api_dict['kwh_charged'] = int(api_dict['kwh_charged'] * 100)
         api_dict['price_total'] = int(api_dict['price_total'] * 100)
         try:
             self._do_request('POST', 'charge/', data=api_dict)
-            return None
         except ValueError as err:
             return err.args[0]
+        else:
+            return None
 
     def edit_charge(self, charge_dict):
+        """
+        Edit a charge. Handles conversion of float values to integer cents.
+
+        Args:
+            charge_dict (dict): The charge data to edit. Must contain an 'id' key.
+
+        Returns:
+            str: An error message if the edit failed, otherwise None.
+        """
         api_dict = charge_dict.copy()
         api_dict['kwh_charged'] = int(api_dict['kwh_charged'] * 100)
         api_dict['price_total'] = int(api_dict['price_total'] * 100)
         del api_dict['id']
         try:
             self._do_request('PUT', f'charge/{charge_dict["id"]}', data=api_dict)
-            return None
         except ValueError as err:
             return err.args[0]
+        else:
+            return None
 
     def delete_charge(self, charge_id):
+        """
+        Delete a charge.
+
+        Args:
+            charge_id (int): The ID of the charge to delete.
+
+        Returns:
+            str: An error message if the deletion failed, otherwise None.
+        """
         try:
             return self._do_request('DELETE', f'charge/{charge_id}')
         except ValueError as err:
@@ -126,7 +239,17 @@ class BackendConnector:
 
 
 class ChargeloggerFrontend:
+    """
+    Frontend for the Chargelogger application.
+    """
+
     def __init__(self, backend):
+        """
+        Initialize the frontend.
+
+        Args:
+            backend (str): The URL of the Chargelogger backend
+        """
         self.backend = BackendConnector(backend)
         self.cookies = CookieController()
         self.me: dict | None = None
@@ -190,8 +313,8 @@ class ChargeloggerFrontend:
         try:
             me = self.backend.me()
             self.refresh_data()
-            LOGGER.info('User authenticated as {}', me.get('username'))
             if me:
+                LOGGER.info('User authenticated as {}', me.get('username'))
                 st.session_state.username = me['username']
                 self.me = me
                 return True  # Authenticated
@@ -206,11 +329,11 @@ class ChargeloggerFrontend:
             return
         with st.sidebar:
             st.header('View settings')
-            car_names = sorted([car['Name'] for car in self.cars])
+            car_names = sorted([car['Name'] for car in self.cars or []])
             st.selectbox('Select a car', car_names, key='selected_car')
             st.selectbox(
                 'See CPO Details',
-                sorted([cpo['name'] for cpo in self.cpos], key=str.casefold),
+                sorted([cpo['name'] for cpo in self.cpos or []], key=str.casefold),
                 key='selected_cpo',
                 index=None,
                 on_change=self.handle_cpo_selection,
@@ -224,10 +347,14 @@ class ChargeloggerFrontend:
                 on_change=self.load_charges,
             )
             st.divider()
-            st.write(f'Logged in as {self.me["username"]}')
+            if self.me:
+                st.write(f'Logged in as {self.me["username"]}')
             st.button('Logout', on_click=self.logout)
 
     def show_car_info(self):
+        """
+        Displays an overview of the selected car.
+        """
         car_name = st.session_state.selected_car
         if not self.cars:
             self.refresh_data()
@@ -316,11 +443,11 @@ class ChargeloggerFrontend:
         self.charges_df = charges_df
 
     @st.dialog('Review Changes')
-    def review_charge_edits(self):
+    def review_charge_edits(self):  # noqa: C901, PLR0912, PLR0915
         """Handles reviewing and saving charge edits."""
         car_name = st.session_state.selected_car
         changeset = st.session_state.charges_editor
-        cpo_ids = {cpo['name']: cpo['id'] for cpo in self.cpos}
+        cpo_ids = {cpo['name']: cpo['id'] for cpo in self.cpos or []}
         if not all((changeset, self.charges_df is not None, self.cars)):
             st.error('No changes to review or data error. Try reloading the page.')
             return
@@ -328,6 +455,9 @@ class ChargeloggerFrontend:
         to_change = []
         to_add = []
         to_delete = []
+        if self.charges_df is None or not self.cars:
+            st.error('No charge data to edit')
+            return
         for edit_row, changes in changeset.get('edited_rows', {}).items():
             log = []
             affected_row = self.charges_df.iloc[edit_row].to_dict()
@@ -384,6 +514,7 @@ class ChargeloggerFrontend:
                 st.rerun()
 
     def show_charges(self):
+        """Displays charge data."""
         if not all((self.charges_df is not None, self.cpos is not None)):
             self.refresh_data()
             return

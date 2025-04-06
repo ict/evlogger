@@ -10,6 +10,7 @@ import os
 import sys
 import time
 
+import dateutil
 import loguru
 import pandas as pd
 import plotly.express as px
@@ -440,6 +441,8 @@ class ChargeloggerFrontend:
         charges_df['date'] = pd.to_datetime(charges_df['date'])
         charges_df = charges_df.set_index('date')
         charges_df['car_km_driven'] = charges_df['car_odometer'][::-1].diff().fillna(0)[::-1]
+        # Do not display "None" for empty values
+        charges_df['note'] = charges_df['note'].fillna('')
         self.charges_df = charges_df
 
     @st.dialog('Review Changes')
@@ -485,6 +488,10 @@ class ChargeloggerFrontend:
                     new_charge['date'] = value
                     continue
                 new_charge[key] = value
+            # Assume the date is in our local timezone
+            date = datetime.datetime.fromisoformat(new_charge['date'])
+            date = date.replace(hour=12)
+            new_charge['date'] = date.astimezone(dateutil.tz.tzlocal()).isoformat()
             st.write(new_charge)
             to_add.append(new_charge)
         if changeset.get('deleted_rows'):
@@ -528,7 +535,7 @@ class ChargeloggerFrontend:
             'car_km_driven': st.column_config.NumberColumn('Distance', format='%f km', disabled=True),
             'kwh_charged': st.column_config.NumberColumn('kWh', required=True),
             'cpo_name': st.column_config.SelectboxColumn('CPO', options=list(cpo_ids.keys()), required=True),
-            'price_total': st.column_config.NumberColumn('Price', format='%.2f €', required=True),
+            'price_total': st.column_config.NumberColumn('Price', format='%.2f €'),
             'charge_type': st.column_config.SelectboxColumn('Type', options=['AC', 'DC'], required=True),
             'price_per_kwh': st.column_config.NumberColumn('Price per kWh', format='%.2f €', disabled=True),
             'note': st.column_config.TextColumn('Note'),

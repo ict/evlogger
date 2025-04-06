@@ -464,6 +464,8 @@ class ChargeloggerFrontend:
             affected_row['date'] = str(self.charges_df.index[edit_row])
             st.subheader(f'Charge on {affected_row["date"]}')
             for key, new_value in changes.items():
+                if key == '_index':
+                    key = 'date'  # noqa: PLW2901
                 log.append(f'- {key}:  {affected_row[key]} -> **{new_value}**')
                 affected_row[key] = new_value
             if 'cpo_name' in changes:

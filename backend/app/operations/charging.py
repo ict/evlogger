@@ -52,16 +52,14 @@ async def _check_plausible(
         raise ValueError(msg) from None
     item.cpo_name = cpo.get('name', '')
 
-    # check if this charge is newer than the last one
-    last_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
-        {'car_id': item.car_id}, sort=[('date', -1)], limit=1
-    )
-    if last_charge and is_new and item.date < last_charge['date']:
-        msg = f'Charging date ({item.date}) is older than last charge date: {last_charge["date"]}'
-        raise ValueError(msg)
+    if is_new:
+        if item.price_total is None:
+            item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
+        if item.car_odometer is None:
+            item.car_odometer = car.get('odometer', 0) + item.car_km_driven
 
     # Check if the odometer value and price is plausible when editing a charge
-    if not is_new:
+    else:
         if not item.car_odometer:
             msg = 'car_odometer is required when editing a charge'
             raise ValueError(msg)
@@ -69,32 +67,27 @@ async def _check_plausible(
             msg = 'price_total is required when editing a charge'
             raise ValueError(msg)
 
-        # Find the previous charge before this one and the next one, if they exist
-        prev_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
-            {'car_id': item.car_id, 'date': {'$lt': item.date}}, sort=[('date', -1)], limit=1
-        )
-        next_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
-            {'car_id': item.car_id, 'date': {'$gt': item.date}}, sort=[('date', 1)], limit=1
-        )
-        if prev_charge:
-            prev_odo = prev_charge.get('car_odometer', 0)
-            if prev_odo > item.car_odometer:
-                msg = f'car_odometer must be greater than the previous charge ({prev_odo})'
-                raise ValueError(msg)
+    # Find the previous charge before this one and the next one, if they exist
+    prev_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
+        {'car_id': item.car_id, 'date': {'$lt': item.date}}, sort=[('date', -1)], limit=1
+    )
+    next_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
+        {'car_id': item.car_id, 'date': {'$gt': item.date}}, sort=[('date', 1)], limit=1
+    )
+    if prev_charge:
+        prev_odo = prev_charge.get('car_odometer', 0)
+        if prev_odo > item.car_odometer:
+            msg = f'car_odometer must be greater than the previous charge ({prev_odo})'
+            raise ValueError(msg)
 
-        if next_charge:
-            next_odo = next_charge.get('car_odometer', 1_000_000)
-            if next_odo < item.car_odometer:
-                msg = f'car_odometer must be less than the next charge ({next_odo})'
-                raise ValueError(msg)
+    if next_charge:
+        next_odo = next_charge.get('car_odometer', 1_000_000)
+        if next_odo < item.car_odometer:
+            msg = f'car_odometer must be less than the next charge ({next_odo})'
+            raise ValueError(msg)
 
     else:
-        if item.price_total is None:
-            item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
-        if item.car_odometer is None:
-            item.car_odometer = car.get('odometer', 0) + item.car_km_driven
-
-        # everything seems to be fine, also update the car
+        # This is the newest charge, update the car's global odometer
         await get_collection(db, COLLECTION_CARS).update_one({'_id': car_id}, {'$set': {'odometer': item.car_odometer}})
 
 

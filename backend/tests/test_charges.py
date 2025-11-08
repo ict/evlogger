@@ -180,16 +180,16 @@ def test_multiple_charges_and_list(test_app):
         expected_km -= 200
 
     # check if the global car odometer is updated
-    response = test_app.get(f'/car/{my_car.id}', headers={'Authorization': f'Bearer {token}'})
+    response = test_app.get(f'/car/{my_car.id}', headers={'authorization': f'bearer {token}'})
     assert response.status_code == 200, response.content
     assert response.json()['odometer'] == 1000
 
-    # check if inserting a charge with an older date than the last one fails
+    # check if inserting a charge with an older date but newer odometer is rejected
     charge_model = ChargeSubmission(
         date=datetime.now(UTC) - timedelta(days=80),
         car_id=my_car.id,
         car_soc_after=90,
-        car_odometer=137,
+        car_odometer=1500,
         cpo_id=my_cpo.id,
         kwh_charged=1500,
         charge_type=ChargeTypeEnum.ac,
@@ -236,11 +236,31 @@ def test_multiple_charges_and_list(test_app):
     response_data = response.json()
     assert len(response_data) == 2, response_data
 
+    # check if inserting an older charge with plausible odometer is accepted
+    charge_model = ChargeSubmission(
+        date=datetime.now(UTC) - timedelta(days=80),
+        car_id=my_car.id,
+        car_soc_after=90,
+        car_odometer=300,
+        cpo_id=my_cpo.id,
+        kwh_charged=1500,
+        charge_type=ChargeTypeEnum.ac,
+    )
+    response = test_app.post(
+        '/charge', headers={'Authorization': f'Bearer {token}'}, json=charge_model.model_dump(mode='json')
+    )
+    assert response.status_code == 201, response.content
+
+    # check if the global car odometer is NOT updated
+    response = test_app.get(f'/car/{my_car.id}', headers={'authorization': f'bearer {token}'})
+    assert response.status_code == 200, response.content
+    assert response.json()['odometer'] == 1000
+
     # Check if we can submit a charge without car_soc_after
     charge_model = ChargeSubmission(
         date=datetime.now(UTC),
         car_id=my_car.id,
-        car_odometer=137,
+        car_odometer=1200,
         cpo_id=my_cpo.id,
         kwh_charged=1500,
         charge_type=ChargeTypeEnum.ac,

@@ -5,7 +5,9 @@ Chargelogger Streamlit frontend.
 # Ruff gets confused by loguru's logger, so we need to disable the check for this file.
 # ruff: noqa: PLE1205
 
+import base64
 import datetime
+import json
 import os
 import sys
 import time
@@ -281,12 +283,24 @@ class ChargeloggerFrontend:
             self.cpos = None
             st.session_state.user_token = None
 
+    @staticmethod
+    def _token_expiry(token: str) -> datetime.datetime | None:
+        """Returns the expiry datetime embedded in a JWT, or None if unreadable."""
+        try:
+            payload = token.split('.')[1]
+            payload += '=' * (-len(payload) % 4)  # re-pad base64
+            exp = json.loads(base64.urlsafe_b64decode(payload)).get('exp')
+            return datetime.datetime.fromtimestamp(exp) if exp else None
+        except Exception:
+            return None
+
     def try_login(self):
         """Attempts to log in the user."""
         if self.backend.login(st.session_state.username, st.session_state.password):
             st.session_state.user_token = self.backend.token
             st.session_state.username = self.backend.user
-            self.cookies.set('user_token', self.backend.token)
+            self.cookies.set('user_token', self.backend.token,
+                             expires=self._token_expiry(self.backend.token))
         else:
             st.error('Login failed')
 

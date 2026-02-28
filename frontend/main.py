@@ -337,6 +337,11 @@ class ChargeloggerFrontend:
             st.session_state.user_token = None
             return False
 
+    def save_selected_car(self):
+        """Saves the currently selected car to a cookie."""
+        self.cookies.set('selected_car', st.session_state.selected_car,
+                         expires=datetime.datetime.now() + datetime.timedelta(days=365))
+
     def configure_sidebar(self):
         """Configures the sidebar for selecting cars, CPOs, and timeframe."""
         if not all((self.cars, self.cpos, self.me)):
@@ -345,7 +350,11 @@ class ChargeloggerFrontend:
         with st.sidebar:
             st.header('View settings')
             car_names = sorted([car['Name'] for car in self.cars or []])
-            st.selectbox('Select a car', car_names, key='selected_car')
+            if 'selected_car' not in st.session_state:
+                saved_car = self.cookies.get('selected_car')
+                if saved_car in car_names:
+                    st.session_state.selected_car = saved_car
+            st.selectbox('Select a car', car_names, key='selected_car', on_change=self.save_selected_car)
             st.selectbox(
                 'See CPO Details',
                 sorted([cpo['name'] for cpo in self.cpos or []], key=str.casefold),

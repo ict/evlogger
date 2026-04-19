@@ -132,6 +132,28 @@ class BackendConnector:
             return []
         return [charge for charge in all_charges if charge['car_id'] == car_id]
 
+    def edit_car(self, car_dict):
+        """
+        Edit a car.
+
+        Args:
+            car_dict (dict): The car data to edit. Must contain an 'id' key.
+
+        Returns:
+            str: An error message if the edit failed, otherwise None.
+        """
+        if 'id' not in car_dict:
+            msg = 'Car ID is required'
+            raise ValueError(msg)
+        api_dict = car_dict.copy()
+        del api_dict['id']
+        try:
+            self._do_request('PUT', f'car/{car_dict["id"]}', data=api_dict)
+        except ValueError as err:
+            return err.args[0]
+        else:
+            return None
+
     def get_cpos(self):
         """
         Get all CPOs of the logged in user.
@@ -385,6 +407,48 @@ class ChargeloggerFrontend:
             return
         st.title(f'{car_name} Overview')
         st.dataframe([car for car in self.cars if car['Name'] == car_name], hide_index=True)
+        st.button('Edit Car', on_click=self.car_details)
+
+    @st.dialog('Car Details')
+    def car_details(self):
+        """Displays car details and allows editing."""
+        if not self.cars:
+            return
+        car_name = st.session_state.selected_car
+        car = next((c for c in self.cars if c['Name'] == car_name), None)
+        if car is None:
+            return
+        columns_config = {
+            'Name': st.column_config.TextColumn('Name', required=True),
+            'Make': st.column_config.TextColumn('Make'),
+            'Model': st.column_config.TextColumn('Model'),
+            'Color': st.column_config.TextColumn('Color'),
+            'Odometer': st.column_config.NumberColumn('Odometer'),
+            'Battery Capacity': st.column_config.NumberColumn('Battery Capacity', required=True),
+            'id': None,
+        }
+        st.data_editor([car], key='car_editor', column_config=columns_config)
+        if st.button('Save changes'):
+            updated_data = st.session_state.car_editor['edited_rows'].get(0, {})
+            merged = {**car, **updated_data}
+            payload = {
+                'id': merged['id'],
+                'name': merged['Name'],
+                'make': merged['Make'],
+                'model': merged['Model'],
+                'color': merged['Color'],
+                'odometer': merged['Odometer'],
+                'battery_capacity': merged['Battery Capacity'],
+            }
+            if msg := self.backend.edit_car(payload):
+                st.error(msg)
+            else:
+                if payload['name'] != car_name:
+                    st.session_state.selected_car = payload['name']
+                    self.save_selected_car()
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
 
     def handle_cpo_selection(self):
         """Handles selection of a CPO."""

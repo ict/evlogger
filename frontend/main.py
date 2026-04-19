@@ -409,7 +409,7 @@ class ChargeloggerFrontend:
         st.dataframe([car for car in self.cars if car['Name'] == car_name], hide_index=True)
         st.button('Edit Car', on_click=self.car_details)
 
-    @st.dialog('Car Details')
+    @st.dialog('Car Details', width='large')
     def car_details(self):
         """Displays car details and allows editing."""
         if not self.cars:
@@ -646,7 +646,7 @@ class ChargeloggerFrontend:
             'note',
         ]
 
-        allow_edit = st.checkbox('Allow editing', key='allow_edit')
+        allow_edit = st.checkbox('Edit Charges', key='allow_edit')
         if allow_edit:
             st.data_editor(
                 self.charges_df,

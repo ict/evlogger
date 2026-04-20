@@ -20,6 +20,8 @@ import requests
 import streamlit as st
 from streamlit_cookies_controller import CookieController
 
+from ui_markup import car_hero_html, compact_layout_css
+
 LOGGER = loguru.logger
 
 
@@ -263,6 +265,16 @@ class BackendConnector:
             return err.args[0]
 
 
+def _car_hero_html(car: dict, avg_consumption: float | None = None, price_per_100_km: float | None = None) -> str:
+    """Proxy to markup module to keep this file focused on app logic."""
+    return car_hero_html(car, avg_consumption=avg_consumption, price_per_100_km=price_per_100_km)
+
+
+def _inject_compact_layout_css() -> None:
+    """Inject global compact layout styling from markup module."""
+    st.markdown(compact_layout_css(), unsafe_allow_html=True)
+
+
 class ChargeloggerFrontend:
     """
     Frontend for the Chargelogger application.
@@ -321,8 +333,7 @@ class ChargeloggerFrontend:
         if self.backend.login(st.session_state.username, st.session_state.password):
             st.session_state.user_token = self.backend.token
             st.session_state.username = self.backend.user
-            self.cookies.set('user_token', self.backend.token,
-                             expires=self._token_expiry(self.backend.token))
+            self.cookies.set('user_token', self.backend.token, expires=self._token_expiry(self.backend.token))
         else:
             st.error('Login failed')
 
@@ -361,8 +372,11 @@ class ChargeloggerFrontend:
 
     def save_selected_car(self):
         """Saves the currently selected car to a cookie."""
-        self.cookies.set('selected_car', st.session_state.selected_car,
-                         expires=datetime.datetime.now() + datetime.timedelta(days=365))
+        self.cookies.set(
+            'selected_car',
+            st.session_state.selected_car,
+            expires=datetime.datetime.now() + datetime.timedelta(days=365),
+        )
 
     def configure_sidebar(self):
         """Configures the sidebar for selecting cars, CPOs, and timeframe."""
@@ -377,6 +391,7 @@ class ChargeloggerFrontend:
                 if saved_car in car_names:
                     st.session_state.selected_car = saved_car
             st.selectbox('Select a car', car_names, key='selected_car', on_change=self.save_selected_car)
+            st.button('Edit Car', on_click=self.car_details)
             st.selectbox(
                 'See CPO Details',
                 sorted([cpo['name'] for cpo in self.cpos or []], key=str.casefold),
@@ -405,9 +420,22 @@ class ChargeloggerFrontend:
         if not self.cars:
             self.refresh_data()
             return
-        st.title(f'{car_name} Overview')
-        st.dataframe([car for car in self.cars if car['Name'] == car_name], hide_index=True)
-        st.button('Edit Car', on_click=self.car_details)
+        car = next((c for c in self.cars if c['Name'] == car_name), None)
+        if car is None:
+            return
+        avg_consumption = None
+        price_per_100_km = None
+        if self.charges_df is not None and not self.charges_df.empty:
+            required_cols = {'car_km_driven', 'price_total', 'kwh_charged'}
+            if required_cols.issubset(self.charges_df.columns):
+                total_km = self.charges_df['car_km_driven'].sum()
+                if total_km > 0:
+                    avg_consumption = round(self.charges_df['kwh_charged'].sum() / total_km * 100, 1)
+                    price_per_100_km = round(self.charges_df['price_total'].sum() / total_km * 100, 2)
+        st.markdown(
+            _car_hero_html(car, avg_consumption=avg_consumption, price_per_100_km=price_per_100_km),
+            unsafe_allow_html=True,
+        )
 
     @st.dialog('Car Details', width='large')
     def car_details(self):
@@ -770,6 +798,7 @@ if __name__ == '__main__':
         backend_url = sys.argv[1]
 
     st.set_page_config(page_title='Chargelogger', page_icon='🔌', layout='wide')
+    _inject_compact_layout_css()
     frontend = ChargeloggerFrontend(backend_url)
     LOGGER.info('Starting application with backend at {}', backend_url)
 
@@ -779,9 +808,8 @@ if __name__ == '__main__':
     else:
         LOGGER.info('Displaying UI')
         frontend.configure_sidebar()
-        frontend.show_car_info()
-
         frontend.load_charges()
+        frontend.show_car_info()
         frontend.show_charges()
         frontend.display_charging_distribution()
         frontend.display_statistics()

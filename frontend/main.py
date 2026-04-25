@@ -790,6 +790,23 @@ class ChargeloggerFrontend:
                     labels={'kwh_per_100km': 'kWh / 100 km', 'date': 'Month'},
                     color_discrete_sequence=['#f97316'],
                 )
+                # Meteorological seasons — cover entire x-axis with no gaps
+                # Spring Mar 1, Summer Jun 1, Autumn Sep 1, Winter Dec 1
+                seasons = [
+                    ('03-01', '06-01', 'rgba(100, 200, 100, 0.13)'),   # Spring
+                    ('06-01', '09-01', 'rgba(255, 210, 50, 0.13)'),    # Summer
+                    ('09-01', '12-01', 'rgba(230, 130, 50, 0.13)'),    # Autumn
+                    ('12-01', '03-01', 'rgba(100, 160, 255, 0.13)'),   # Winter (wraps to next year)
+                ]
+                start_year = consumption.index.min().year - 1
+                end_year = consumption.index.max().year + 1
+                for year in range(start_year, end_year + 1):
+                    for start_md, end_md, color in seasons:
+                        end_year_offset = year + 1 if end_md == '03-01' else year
+                        fig.add_vrect(
+                            x0=f'{year}-{start_md}', x1=f'{end_year_offset}-{end_md}',
+                            fillcolor=color, line_width=0, layer='below',
+                        )
                 st.plotly_chart(fig, use_container_width=True)
         with row1[1]:
             fig = px.bar(

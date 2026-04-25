@@ -674,6 +674,7 @@ class ChargeloggerFrontend:
             'note',
         ]
 
+        st.subheader('Charges')
         allow_edit = st.checkbox('Edit Charges', key='allow_edit')
         if allow_edit:
             st.data_editor(
@@ -753,6 +754,80 @@ class ChargeloggerFrontend:
             c.metric('Price per 100 km', f'{price_100_km} €', border=True)
             d.metric('kWh / 100 km', f'{kwh_per_100_km}', border=True)
 
+    def display_trends(self):
+        """Displays time-series trend charts for charge data."""
+        if self.charges_df is None or len(self.charges_df) < 2:
+            return
+
+        st.subheader('Trends')
+        monthly = self.charges_df.resample('MS').agg(
+            {
+                'kwh_charged': 'sum',
+                'car_km_driven': 'sum',
+                'price_total': 'sum',
+            }
+        )
+
+        consumption = monthly[monthly['car_km_driven'] > 0].copy()
+        # 3-month rolling window (center-aligned) to smooth out jitter between months
+        rolling = monthly[['kwh_charged', 'car_km_driven']].rolling(3, center=True, min_periods=1).sum()
+        consumption['kwh_per_100km'] = (
+            rolling['kwh_charged'] / rolling['car_km_driven'].replace(0, float('nan')) * 100
+        )
+        consumption = consumption.dropna(subset=['kwh_per_100km'])
+
+        price_per_kwh = monthly[monthly['kwh_charged'] > 0].copy()
+        price_per_kwh['eur_per_kwh'] = price_per_kwh['price_total'] / price_per_kwh['kwh_charged']
+
+        row1 = st.columns(2)
+        with row1[0]:
+            if len(consumption) >= 2:
+                fig = px.line(
+                    consumption,
+                    y='kwh_per_100km',
+                    markers=True,
+                    title='Consumption (kWh / 100 km)',
+                    labels={'kwh_per_100km': 'kWh / 100 km', 'date': 'Month'},
+                    color_discrete_sequence=['#f97316'],
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        with row1[1]:
+            fig = px.bar(
+                monthly,
+                y='car_km_driven',
+                title='Distance driven (km)',
+                labels={'car_km_driven': 'km', 'date': 'Month'},
+                color_discrete_sequence=['#22c55e'],
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        row2 = st.columns(2)
+        with row2[0]:
+            if len(price_per_kwh) >= 2:
+                fig = px.line(
+                    price_per_kwh,
+                    y='eur_per_kwh',
+                    markers=True,
+                    title='Price per kWh (€)',
+                    labels={'eur_per_kwh': '€ / kWh', 'date': 'Month'},
+                    color_discrete_sequence=['#a855f7'],
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        with row2[1]:
+            cpo_totals = self.charges_df.groupby('cpo_name')['kwh_charged'].sum().sort_values().tail(10)
+            # Log scale prevents one dominant CPO (e.g. home Wallbox) from squashing the rest
+            fig = px.bar(
+                cpo_totals,
+                orientation='h',
+                title='Top CPOs by kWh',
+                labels={'value': 'kWh', 'cpo_name': 'CPO'},
+                color=cpo_totals.index,
+                color_discrete_sequence=px.colors.qualitative.Safe,
+                log_x=True,
+            )
+            fig.update_layout(showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+
     def display_charging_distribution(self):
         """Displays charging distribution statistics."""
         if self.charges_df is None:
@@ -813,3 +888,4 @@ if __name__ == '__main__':
         frontend.show_charges()
         frontend.display_charging_distribution()
         frontend.display_statistics()
+        frontend.display_trends()

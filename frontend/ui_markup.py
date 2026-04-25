@@ -130,7 +130,6 @@ def car_hero_html(car: dict, avg_consumption: float | None = None, price_per_100
   display: flex; gap: 12px; align-items: center;
   padding: 10px 12px; margin-bottom: 8px;
   border-radius: 12px;
-  background: linear-gradient(165deg, rgba(255, 233, 240, 0.72), rgba(226, 241, 255, 0.55));
   border: 1px solid rgba(192, 203, 223, 0.75);
 }}
 .cl-hero-left {{ flex: 1.15 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }}

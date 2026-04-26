@@ -92,6 +92,18 @@ class BackendConnector:
         """
         return self._do_request('GET', 'users/me')
 
+    def list_api_tokens(self):
+        return self._do_request('GET', 'users/api-tokens') or []
+
+    def create_api_token(self, name, expires_at=None):
+        payload = {'name': name}
+        if expires_at:
+            payload['expires_at'] = expires_at.isoformat()
+        return self._do_request('POST', 'users/api-tokens', data=payload)
+
+    def delete_api_token(self, token_id):
+        return self._do_request('DELETE', f'users/api-tokens/{token_id}')
+
     def get_cars(self):
         """
         Get a list of all cars of the logged in user.
@@ -410,7 +422,62 @@ class ChargeloggerFrontend:
             st.divider()
             if self.me:
                 st.write(f'Logged in as {self.me["username"]}')
+            st.button('API Tokens', on_click=self.api_tokens_dialog)
             st.button('Logout', on_click=self.logout)
+
+    @st.dialog('API Tokens', width='large')
+    def api_tokens_dialog(self):
+        """Manage long-lived personal access tokens."""
+        st.caption('Use these tokens as `Authorization: Bearer <token>` to access the API.')
+
+        new_token = st.session_state.pop('_new_api_token', None)
+        if new_token:
+            st.success('Token created. Copy it now — it will not be shown again.')
+            st.code(new_token, language=None)
+
+        with st.form('create_api_token'):
+            name = st.text_input('Token name', key='_api_token_name')
+            expires = st.date_input('Expires (optional)', value=None, key='_api_token_expires')
+            if st.form_submit_button('Create token'):
+                if not name:
+                    st.error('Name is required')
+                else:
+                    try:
+                        expires_at = (
+                            datetime.datetime.combine(expires, datetime.time.min, tzinfo=datetime.UTC)
+                            if expires
+                            else None
+                        )
+                        result = self.backend.create_api_token(name, expires_at=expires_at)
+                        st.session_state['_new_api_token'] = result['token']
+                        st.rerun()
+                    except ValueError as err:
+                        st.error(err.args[0])
+
+        st.divider()
+        try:
+            tokens = self.backend.list_api_tokens()
+        except ValueError as err:
+            st.error(err.args[0])
+            return
+
+        if not tokens:
+            st.info('No API tokens yet.')
+            return
+
+        for tok in tokens:
+            cols = st.columns([3, 3, 3, 1])
+            cols[0].write(f'**{tok["name"]}**')
+            cols[1].code(tok['preview'], language=None)
+            last_used = tok.get('last_used_at') or 'never'
+            expires_at = tok.get('expires_at') or 'never'
+            cols[2].caption(f'Last used: {last_used}\n\nExpires: {expires_at}')
+            if cols[3].button('Revoke', key=f'revoke_{tok["id"]}'):
+                try:
+                    self.backend.delete_api_token(tok['id'])
+                    st.rerun()
+                except ValueError as err:
+                    st.error(err.args[0])
 
     def show_car_info(self):
         """

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,9 +7,25 @@ from starlette import status
 
 from app.core import config
 from app.core.db import AsyncIOMotorClient, get_database
-from app.models.users import User, UserInDb, UserRegister, Token, UserWithPasswordHash
-from app.operations.users import UserCrudOp
-from app.util.auth import get_current_user, authenticate_user, create_access_token, get_password_hash
+from app.models.users import (
+    ApiToken,
+    ApiTokenCreate,
+    ApiTokenCreated,
+    ApiTokenPublic,
+    Token,
+    User,
+    UserInDb,
+    UserRegister,
+    UserWithPasswordHash,
+)
+from app.operations.users import ApiTokenCrudOp, UserCrudOp
+from app.util.auth import (
+    authenticate_user,
+    create_access_token,
+    generate_api_token,
+    get_current_user,
+    get_password_hash,
+)
 
 router = APIRouter()
 
@@ -62,3 +78,61 @@ async def register(user_data: UserRegister, db: AsyncIOMotorClient = DBDepends) 
     )
     user = await UserCrudOp.create(db, new_user)
     return user
+
+
+@router.post('/users/api-tokens', response_model=ApiTokenCreated, tags=['Users'])
+async def create_api_token(
+    body: ApiTokenCreate,
+    current_user: Annotated[UserInDb, Depends(get_current_user)],
+    db: AsyncIOMotorClient = DBDepends,
+) -> ApiTokenCreated:
+    raw, token_hash, preview = generate_api_token()
+    new_token = ApiToken(
+        name=body.name,
+        owner_id=current_user.id,
+        token_hash=token_hash,
+        preview=preview,
+        created_at=datetime.now(UTC),
+        expires_at=body.expires_at,
+    )
+    created = await ApiTokenCrudOp.create(db, new_token)
+    return ApiTokenCreated(
+        id=created.id,
+        name=created.name,
+        preview=created.preview,
+        created_at=created.created_at,
+        last_used_at=created.last_used_at,
+        expires_at=created.expires_at,
+        token=raw,
+    )
+
+
+@router.get('/users/api-tokens', response_model=list[ApiTokenPublic], tags=['Users'])
+async def list_api_tokens(
+    current_user: Annotated[UserInDb, Depends(get_current_user)],
+    db: AsyncIOMotorClient = DBDepends,
+) -> list[ApiTokenPublic]:
+    tokens = await ApiTokenCrudOp.list(db, limit=100, owner_id=current_user.id)
+    return [
+        ApiTokenPublic(
+            id=t.id,
+            name=t.name,
+            preview=t.preview,
+            created_at=t.created_at,
+            last_used_at=t.last_used_at,
+            expires_at=t.expires_at,
+        )
+        for t in tokens
+    ]
+
+
+@router.delete('/users/api-tokens/{token_id}', tags=['Users'])
+async def delete_api_token(
+    token_id: str,
+    current_user: Annotated[UserInDb, Depends(get_current_user)],
+    db: AsyncIOMotorClient = DBDepends,
+):
+    deleted = await ApiTokenCrudOp.delete_by_id(db, token_id, owner_id=current_user.id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='API token not found')
+    return {'result': 'ok'}

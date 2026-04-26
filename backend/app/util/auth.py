@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -10,7 +12,7 @@ from starlette import status
 from app.core import config
 from app.core.db import AsyncIOMotorClient, get_database
 from app.models.users import TokenData, User, UserInDb
-from app.operations.users import UserCrudOp
+from app.operations.users import ApiTokenCrudOp, UserCrudOp
 
 SECRET_KEY = config.API_SECRET_KEY
 ALGORITHM = config.API_ALGORITHM
@@ -46,6 +48,29 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
+def generate_api_token() -> tuple[str, str, str]:
+    """Return (raw_token, token_hash, preview) for a new long-lived API token."""
+    raw = config.API_TOKEN_PREFIX + secrets.token_urlsafe(32)
+    return raw, hash_api_token(raw), raw[:10] + '…' + raw[-4:]
+
+
+def hash_api_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+
+
+async def _resolve_api_token(token: str, db: AsyncIOMotorClient) -> User | None:
+    api_token = await ApiTokenCrudOp.get_by_property(db, 'token_hash', hash_api_token(token))
+    if api_token is None:
+        return None
+    if api_token.expires_at is not None and api_token.expires_at < datetime.now(UTC):
+        return None
+    user = await UserCrudOp.get_by_id(db, api_token.owner_id)
+    if user is None:
+        return None
+    await ApiTokenCrudOp.touch_last_used(db, api_token.id, datetime.now(UTC))
+    return user
+
+
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)], db: AsyncIOMotorClient = Depends(get_database)
 ):
@@ -54,6 +79,11 @@ async def get_current_user(
         detail='Could not validate credentials',
         headers={'WWW-Authenticate': 'Bearer'},
     )
+    if token.startswith(config.API_TOKEN_PREFIX):
+        user = await _resolve_api_token(token, db)
+        if user is None:
+            raise credentials_exception
+        return user
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get('sub')

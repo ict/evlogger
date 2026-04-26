@@ -22,6 +22,10 @@ COLLECTION_CARS = 'cars'
 COLLECTION_CHARGES = 'charges'
 COLLECTION_CPOS = 'cpos'
 COLLECTION_USERS = 'users'
+COLLECTION_API_TOKENS = 'api_tokens'
+
+# Long-lived personal access tokens issued by users to authenticate API clients.
+API_TOKEN_PREFIX = 'clk_'
 
 ALLOWED_HOSTS = '*'
 PROJECT_NAME = 'chargelogger'

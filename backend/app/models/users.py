@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from app.models.helpers import DbIdMixin
@@ -33,3 +35,34 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
+
+
+class ApiTokenCreate(BaseModel):
+    name: str
+    expires_at: datetime | None = None
+
+
+class ApiToken(BaseModel):
+    name: str
+    owner_id: str
+    token_hash: str
+    preview: str
+    created_at: datetime
+    last_used_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class ApiTokenInDb(ApiToken, DbIdMixin):
+    pass
+
+
+class ApiTokenPublic(DbIdMixin):
+    name: str
+    preview: str
+    created_at: datetime
+    last_used_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class ApiTokenCreated(ApiTokenPublic):
+    token: str

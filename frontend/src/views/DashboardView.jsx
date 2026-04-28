@@ -12,7 +12,7 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
   const [tfLoading, setTfLoading] = useState(false);
 
   useEffect(() => {
-    if (!selectedCarId) return;
+    if (!api || !selectedCarId) return;
     const range = getTimeframeRange(tf, fromDate, toDate);
     setTfLoading(true);
     api.getCharges(range)

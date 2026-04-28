@@ -21,12 +21,12 @@ export default function App() {
   const [auth, setAuth] = useState(() => {
     try { return JSON.parse(safeStorage.get('cl_auth') || 'null'); } catch { return null; }
   });
-  const [dashTf, setDashTf] = useState('3M');
-  const [dashFrom, setDashFrom] = useState('');
-  const [dashTo, setDashTo] = useState('');
+  const [dashTf, setDashTf] = useState(() => safeStorage.get('cl_dashTf') || '3M');
+  const [dashFrom, setDashFrom] = useState(() => safeStorage.get('cl_dashFrom') || '');
+  const [dashTo, setDashTo] = useState(() => safeStorage.get('cl_dashTo') || '');
   const [tab, setTab] = useState('dashboard');
   const [cars, setCars] = useState([]);
-  const [selectedCarId, setSelectedCarId] = useState('');
+  const [selectedCarId, setSelectedCarId] = useState(() => safeStorage.get('cl_carId') || '');
   const [cpos, setCpos] = useState([]);
   const [charges, setCharges] = useState([]);
   const [chargesLoading, setChargesLoading] = useState(false);
@@ -62,11 +62,20 @@ export default function App() {
     setCars([]); setCharges([]); setCpos([]); setSelectedCarId('');
   };
 
+  const handleSetSelectedCarId = useCallback((id) => {
+    setSelectedCarId(id);
+    safeStorage.set('cl_carId', id);
+  }, []);
+
+  const handleSetDashTf = useCallback((v) => { setDashTf(v); safeStorage.set('cl_dashTf', v); }, []);
+  const handleSetDashFrom = useCallback((v) => { setDashFrom(v); safeStorage.set('cl_dashFrom', v); }, []);
+  const handleSetDashTo = useCallback((v) => { setDashTo(v); safeStorage.set('cl_dashTo', v); }, []);
+
   const loadCars = useCallback(() => {
     if (!apiClient) return;
     apiClient.getCars().then((data) => {
       setCars(data || []);
-      if (data?.length && !selectedCarId) setSelectedCarId(data[0].id);
+      if (data?.length && !selectedCarId) handleSetSelectedCarId(data[0].id);
     }).catch((e) => { if (e.status === 401) logout(); });
   }, [apiClient, selectedCarId]);
 
@@ -141,7 +150,7 @@ export default function App() {
             {carDropdown && (
               <div className="dropdown-menu" style={{ minWidth: 220 }}>
                 {cars.map((c) => (
-                  <div key={c.id} className={`dropdown-item${c.id === selectedCarId ? ' active' : ''}`} onClick={() => { setSelectedCarId(c.id); setCarDropdown(false); }}>
+                  <div key={c.id} className={`dropdown-item${c.id === selectedCarId ? ' active' : ''}`} onClick={() => { handleSetSelectedCarId(c.id); setCarDropdown(false); }}>
                     <div className="car-dot" style={{ background: c.color || '#94a3b8' }}></div>
                     <div>
                       <div style={{ fontWeight: 600 }}>{c.name}</div>
@@ -180,7 +189,7 @@ export default function App() {
       </header>
 
       <main className="main-content">
-        {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} tf={dashTf} setTf={setDashTf} fromDate={dashFrom} setFromDate={setDashFrom} toDate={dashTo} setToDate={setDashTo} />}
+        {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} tf={dashTf} setTf={handleSetDashTf} fromDate={dashFrom} setFromDate={handleSetDashFrom} toDate={dashTo} setToDate={handleSetDashTo} />}
         {tab === 'charges' && <ChargesView api={apiClient} charges={charges} loading={chargesLoading} reload={loadCharges} cars={cars} cpos={cpos} selectedCarId={selectedCarId} toast={toast} />}
         {tab === 'trends' && <YearlyTrendsView charges={charges} loading={chargesLoading} selectedCarId={selectedCarId} />}
         {tab === 'cpos' && <CposView api={apiClient} toast={toast} />}

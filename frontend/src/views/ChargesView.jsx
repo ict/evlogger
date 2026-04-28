@@ -45,7 +45,7 @@ export default function ChargesView({ api, charges, loading, reload, cars, cpos,
   };
 
   return (
-    <div>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div className="section-header">
         <div className="section-title">Charges</div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -87,7 +87,7 @@ export default function ChargesView({ api, charges, loading, reload, cars, cpos,
                       <td className="muted">{c.price_total != null ? fmtEur(c.price_total) + ' €' : '—'}</td>
                       <td className="muted">{c.price_per_kwh ? fmtEur(c.price_per_kwh) : '—'}</td>
                       <td className="muted">{c.car_odometer ? c.car_odometer.toLocaleString('de-DE') + ' km' : '—'}</td>
-                      <td className="muted" style={{ color: distanceMap[c.id] ? 'var(--text)' : undefined, fontWeight: distanceMap[c.id] ? 500 : undefined }}>{distanceMap[c.id] ? '+' + distanceMap[c.id].toLocaleString('de-DE') + ' km' : '—'}</td>
+                      <td className="muted" style={{ color: distanceMap[c.id] ? 'var(--text)' : undefined, fontWeight: distanceMap[c.id] ? 500 : undefined }}>{distanceMap[c.id] ? distanceMap[c.id].toLocaleString('de-DE') + ' km' : '—'}</td>
                       <td className="muted">{c.car_soc_after != null ? c.car_soc_after + '%' : '—'}</td>
                       <td className="muted" style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.note || ''}>{c.note || '—'}</td>
                       <td>

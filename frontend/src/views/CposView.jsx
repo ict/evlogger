@@ -24,7 +24,7 @@ export default function CposView({ api, toast }) {
   };
 
   return (
-    <div>
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="section-header">
         <div className="section-title">Charge Point Operators</div>
         <button className="btn btn-primary btn-sm" onClick={() => { setEditCpo(null); setShowModal(true); }}>+ Add CPO</button>

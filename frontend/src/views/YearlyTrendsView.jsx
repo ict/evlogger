@@ -97,7 +97,7 @@ export default function YearlyTrendsView({ charges, loading, selectedCarId }) {
   const hasMultiple = yearlyData.length > 1;
 
   return (
-    <div>
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="section-header" style={{ marginBottom: 20 }}>
         <div className="section-title">Yearly Trends</div>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Full dataset — all time</span>

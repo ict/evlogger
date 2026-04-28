@@ -1,3 +1,5 @@
+import os
+
 import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -9,7 +11,7 @@ from app.routes.charging import router as charge_router
 from app.routes.cpos import router as cpo_router
 from app.routes.users import router as user_router
 
-app = FastAPI(title=PROJECT_NAME)
+app = FastAPI(title=PROJECT_NAME, root_path=os.environ.get('API_ROOT_PATH', ''))
 
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']

@@ -3,13 +3,14 @@ services:
     build:
       context: ./backend
       dockerfile: ./docker/Dockerfile
-    ports:
-      - "127.0.0.1:8000:8000"
+    expose:
+      - "8000"
     environment:
       MONGODB_URL: mongodb://mongo:27017/chargelogger
       API_SECRET_KEY: 09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7
       API_ALGORITHM: HS256
       API_ACCESS_TOKEN_EXPIRE_MINUTES: 129600 # 90 days
+      API_ROOT_PATH: /api
 
   mongo:
     image: mongo:latest
@@ -21,6 +22,6 @@ services:
       context: ./frontend
       dockerfile: ./docker/Dockerfile
     ports:
-      - "127.0.0.1:8501:8501"
-    environment:
-      CHARGELOGGER_BACKEND: "http://api:8000"
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api

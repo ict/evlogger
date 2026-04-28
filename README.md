@@ -17,7 +17,7 @@ A self-hosted tool for tracking EV charging sessions across multiple cars. Charg
 ```
 chargelogger/
 ├── backend/          # FastAPI + MongoDB API server
-├── frontend/         # Streamlit web UI
+├── frontend/         # React (Vite) SPA, served by Caddy + reverse-proxies /api
 ├── util/             # Helper scripts (fill example data, etc.)
 └── docker-compose.yml
 ```
@@ -34,17 +34,17 @@ docker-compose up
 
 This starts three services:
 
-| Service  | URL                        | Description          |
-|----------|----------------------------|----------------------|
-| API      | http://localhost:8000      | FastAPI backend      |
-| Frontend | http://localhost:8501      | Streamlit UI         |
-| MongoDB  | localhost:27017            | Database             |
+| Service          | URL                          | Description                          |
+|------------------|------------------------------|--------------------------------------|
+| Frontend + API   | http://localhost:8080        | React SPA (Caddy proxies `/api/*`)   |
+| MongoDB          | localhost:27017              | Database                             |
 
-> The API docs (Swagger UI) are available at http://localhost:8000/docs.
+> The API docs (Swagger UI) are available at http://localhost:8080/api/docs.
+> The API container is internal-only — reach it through the Caddy proxy.
 
 ### First steps
 
-1. Open http://localhost:8501 in your browser.
+1. Open http://localhost:8080 in your browser.
 2. Register a new account — the first user automatically becomes admin.
 3. Add a car and at least one CPO (e.g. your home wallbox).
 4. Start logging charges, or import existing data via CSV.
@@ -64,8 +64,8 @@ These can be set in `docker-compose.yml` or in a `.env` file when running locall
 
 ### Frontend
 
-| Variable                | Default                  | Description               |
-|-------------------------|--------------------------|---------------------------|
-| `CHARGELOGGER_BACKEND`  | `http://localhost:8000`  | URL of the backend API    |
+The frontend is a static bundle. It calls the API at the relative path `/api`,
+which Caddy reverse-proxies to the backend container — no environment variables
+needed.
 
 > **Security note:** The `API_SECRET_KEY` in `docker-compose.yml` is a public example value. Always replace it with a random secret before exposing the service to a network.

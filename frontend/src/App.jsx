@@ -33,6 +33,7 @@ export default function App() {
   const [chargesLoading, setChargesLoading] = useState(false);
   const [carDropdown, setCarDropdown] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(false);
   const [showCarModal, setShowCarModal] = useState(false);
   const [editCar, setEditCar] = useState(null);
   const [toasts, setToasts] = useState([]);
@@ -99,7 +100,7 @@ export default function App() {
   }, [apiClient]);
 
   useEffect(() => {
-    const h = () => { setCarDropdown(false); setUserDropdown(false); };
+    const h = () => { setCarDropdown(false); setUserDropdown(false); setMobileMenu(false); };
     document.addEventListener('click', h);
     return () => document.removeEventListener('click', h);
   }, []);
@@ -135,12 +136,19 @@ export default function App() {
         <nav className="topbar-tabs">
           {tabs.map((t) => (
             <button key={t.id} className={`tab-btn${tab === t.id ? ' active' : ''}`} onClick={() => setTab(t.id)}>
-              <span>{t.label}</span>
+              {t.label}
             </button>
           ))}
         </nav>
 
         <div className="topbar-spacer" />
+
+        <button className="hamburger-btn" onClick={(e) => { e.stopPropagation(); setMobileMenu((d) => !d); }} aria-label="Menu">
+          {mobileMenu
+            ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
+          }
+        </button>
 
         {cars.length > 0 && (
           <div className="dropdown-wrap" onClick={(e) => e.stopPropagation()}>
@@ -189,6 +197,37 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {mobileMenu && (
+        <div className="mobile-menu" onClick={(e) => e.stopPropagation()}>
+          <nav className="mobile-menu-nav">
+            {tabs.map((t) => (
+              <button key={t.id} className={`mobile-menu-tab${tab === t.id ? ' active' : ''}`} onClick={() => { setTab(t.id); setMobileMenu(false); }}>
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          {cars.length > 0 && (
+            <>
+              <div className="mobile-menu-sep" />
+              <div className="mobile-menu-section-label">Car</div>
+              {cars.map((c) => (
+                <button key={c.id} className={`mobile-menu-tab${c.id === selectedCarId ? ' active' : ''}`} onClick={() => { handleSetSelectedCarId(c.id); setMobileMenu(false); }}>
+                  <div className="car-dot" style={{ background: c.color || '#94a3b8' }} />
+                  {c.name}
+                </button>
+              ))}
+              <div className="mobile-menu-sep" />
+              <button className="mobile-menu-tab" onClick={() => { setEditCar(null); setShowCarModal(true); setMobileMenu(false); }}>+ Add car</button>
+              {selectedCar && (
+                <button className="mobile-menu-tab" onClick={() => { setEditCar(selectedCar); setShowCarModal(true); setMobileMenu(false); }}>✎ Edit {selectedCar.name}</button>
+              )}
+            </>
+          )}
+          <div className="mobile-menu-sep" />
+          <button className="mobile-menu-tab" onClick={() => { setMobileMenu(false); logout(); }}>Sign out</button>
+        </div>
+      )}
 
       <main className="main-content">
         {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} tf={dashTf} setTf={handleSetDashTf} fromDate={dashFrom} setFromDate={handleSetDashFrom} toDate={dashTo} setToDate={handleSetDashTo} />}

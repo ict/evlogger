@@ -6,6 +6,7 @@ import DashboardView from './views/DashboardView.jsx';
 import ChargesView from './views/ChargesView.jsx';
 import CposView from './views/CposView.jsx';
 import YearlyTrendsView from './views/YearlyTrendsView.jsx';
+import AdminView from './views/AdminView.jsx';
 import CarModal from './modals/CarModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 
@@ -118,6 +119,7 @@ export default function App() {
     { id: 'charges', label: 'Charges' },
     { id: 'trends', label: 'Yearly Trends' },
     { id: 'cpos', label: 'CPOs' },
+    ...(auth?.user?.is_admin ? [{ id: 'admin', label: 'Admin' }] : []),
   ];
 
   return (
@@ -193,6 +195,7 @@ export default function App() {
         {tab === 'charges' && <ChargesView api={apiClient} charges={charges} loading={chargesLoading} reload={loadCharges} cars={cars} cpos={cpos} selectedCarId={selectedCarId} toast={toast} />}
         {tab === 'trends' && <YearlyTrendsView charges={charges} loading={chargesLoading} selectedCarId={selectedCarId} />}
         {tab === 'cpos' && <CposView api={apiClient} toast={toast} />}
+        {tab === 'admin' && auth?.user?.is_admin && <AdminView api={apiClient} toast={toast} />}
       </main>
 
       {cars.length === 0 && auth && (

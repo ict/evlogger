@@ -18,6 +18,7 @@ from app.models.users import (
     UserRegister,
     UserWithPasswordHash,
 )
+from app.operations.site_settings import get_site_settings
 from app.operations.users import ApiTokenCrudOp, UserCrudOp
 from app.util.auth import (
     authenticate_user,
@@ -57,10 +58,13 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
 async def register(user_data: UserRegister, db: AsyncIOMotorClient = DBDepends) -> User:
     exists_exception = HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'Username or email address already in use')
     first_user = await UserCrudOp.list(db, limit=1)
-    if not first_user:
-        is_admin = True
-    else:
-        is_admin = False
+    is_bootstrap = not first_user
+    is_admin = is_bootstrap
+
+    if not is_bootstrap:
+        settings = await get_site_settings(db)
+        if not settings.registration_enabled:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, 'Registration is disabled')
     existing = await UserCrudOp.get_by_property(db, 'username', user_data.username)
     if existing:
         raise exists_exception

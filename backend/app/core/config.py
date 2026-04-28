@@ -23,6 +23,7 @@ COLLECTION_CHARGES = 'charges'
 COLLECTION_CPOS = 'cpos'
 COLLECTION_USERS = 'users'
 COLLECTION_API_TOKENS = 'api_tokens'
+COLLECTION_SITE_SETTINGS = 'site_settings'
 
 # Long-lived personal access tokens issued by users to authenticate API clients.
 API_TOKEN_PREFIX = 'clk_'

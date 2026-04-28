@@ -44,5 +44,8 @@ export function makeApi(baseUrl, token) {
     createCharge: (d) => req('/charge/', { method: 'POST', body: JSON.stringify(d) }),
     updateCharge: (id, d) => req(`/charge/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
     deleteCharge: (id) => req(`/charge/${id}`, { method: 'DELETE' }),
+    register: (d) => req('/users/register', { method: 'POST', body: JSON.stringify(d) }),
+    getAdminSettings: () => req('/admin/settings'),
+    updateAdminSettings: (d) => req('/admin/settings', { method: 'PUT', body: JSON.stringify(d) }),
   };
 }

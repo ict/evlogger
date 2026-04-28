@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.core.config import ALLOWED_HOSTS, PROJECT_NAME
 from app.core.db import close_mongo_connection, connect_to_mongo
+from app.routes.admin import router as admin_router
 from app.routes.cars import router as car_router
 from app.routes.charging import router as charge_router
 from app.routes.cpos import router as cpo_router
@@ -27,6 +28,7 @@ app.add_middleware(
 app.add_event_handler('startup', connect_to_mongo)
 app.add_event_handler('shutdown', close_mongo_connection)
 
+app.include_router(admin_router)
 app.include_router(car_router, prefix='/car', tags=['Cars'])
 app.include_router(cpo_router, prefix='/cpo', tags=['CPOs'])
 app.include_router(charge_router, prefix='/charge', tags=['Charging'])

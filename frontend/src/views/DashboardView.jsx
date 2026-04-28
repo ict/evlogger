@@ -19,7 +19,7 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
       .then((all) => setTfCharges((all || []).filter((c) => c.car_id === selectedCarId)))
       .catch(() => {})
       .finally(() => setTfLoading(false));
-  }, [tf, fromDate, toDate, selectedCarId]);
+  }, [api, tf, fromDate, toDate, selectedCarId]);
 
   const stats = useMemo(() => {
     const c = [...tfCharges].sort((a, b) => new Date(a.date) - new Date(b.date));

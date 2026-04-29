@@ -8,6 +8,7 @@ import CposView from './views/CposView.jsx';
 import YearlyTrendsView from './views/YearlyTrendsView.jsx';
 import AdminView from './views/AdminView.jsx';
 import CarModal from './modals/CarModal.jsx';
+import ApiTokensModal from './modals/ApiTokensModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 
 const API_BASE = '/api';
@@ -37,6 +38,7 @@ export default function App() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [showCarModal, setShowCarModal] = useState(false);
   const [editCar, setEditCar] = useState(null);
+  const [showTokensModal, setShowTokensModal] = useState(false);
   const [toasts, setToasts] = useState([]);
 
   const _mockApi = useRef(null);
@@ -197,6 +199,7 @@ export default function App() {
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{auth.user?.full_name || auth.user?.username}</div>
                 {auth.user?.email && <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{auth.user.email}</div>}
               </div>
+              <div className="dropdown-item" onClick={() => { setUserDropdown(false); setShowTokensModal(true); }}>API tokens</div>
               <div className="dropdown-item" onClick={() => { setUserDropdown(false); logout(); }}>Sign out</div>
             </div>
           )}
@@ -250,6 +253,7 @@ export default function App() {
       )}
 
       <CarModal open={showCarModal} onClose={() => setShowCarModal(false)} onSaved={() => { setShowCarModal(false); loadCars(); }} car={editCar} api={apiClient} toast={toast} />
+      <ApiTokensModal open={showTokensModal} onClose={() => setShowTokensModal(false)} api={apiClient} toast={toast} />
       <ToastContainer toasts={toasts} />
     </div>
   );

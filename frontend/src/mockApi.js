@@ -78,6 +78,7 @@ export function makeMockApi() {
   let cars = JSON.parse(JSON.stringify(MOCK_CARS));
   let cpos = JSON.parse(JSON.stringify(MOCK_CPOS));
   let charges = generateMockCharges();
+  let apiTokens = [];
   let nextId = 200;
   const delay = () => new Promise((r) => setTimeout(r, 80));
   const nid = () => `m${nextId++}`;
@@ -120,5 +121,13 @@ export function makeMockApi() {
       }
     },
     async deleteCharge(id) { await delay(); charges = charges.filter((c) => c.id !== id); return null; },
+    async listApiTokens() { await delay(); return apiTokens; },
+    async createApiToken(d) {
+      await delay();
+      const t = { id: nid(), name: d.name, preview: 'demo_abc', created_at: new Date().toISOString(), last_used_at: null, expires_at: d.expires_at || null };
+      apiTokens.push(t);
+      return { ...t, token: 'demo_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) };
+    },
+    async deleteApiToken(id) { await delay(); apiTokens = apiTokens.filter((t) => t.id !== id); return { result: 'ok' }; },
   };
 }

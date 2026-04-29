@@ -45,6 +45,9 @@ export function makeApi(baseUrl, token) {
     updateCharge: (id, d) => req(`/charge/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
     deleteCharge: (id) => req(`/charge/${id}`, { method: 'DELETE' }),
     register: (d) => req('/users/register', { method: 'POST', body: JSON.stringify(d) }),
+    listApiTokens: () => req('/users/api-tokens'),
+    createApiToken: (d) => req('/users/api-tokens', { method: 'POST', body: JSON.stringify(d) }),
+    deleteApiToken: (id) => req(`/users/api-tokens/${id}`, { method: 'DELETE' }),
     getAdminSettings: () => req('/admin/settings'),
     updateAdminSettings: (d) => req('/admin/settings', { method: 'PUT', body: JSON.stringify(d) }),
     // User management (admin only)

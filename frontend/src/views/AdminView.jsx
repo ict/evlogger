@@ -224,7 +224,7 @@ export default function AdminView({ api, toast }) {
                         <td style={{ padding: 6, fontWeight: 500 }}>{car.name}</td>
                         <td style={{ padding: 6 }}>{car.make || '—'}</td>
                         <td style={{ padding: 6 }}>{car.model || '—'}</td>
-                        <td style={{ padding: 6 }}>{car.battery_capacity / 100} kWh</td>
+                        <td style={{ padding: 6 }}>{car.battery_capacity} kWh</td>
                         <td style={{ padding: 6 }}>{car.odometer.toLocaleString('de-DE')} km</td>
                       </tr>
                     ))}
@@ -252,7 +252,7 @@ export default function AdminView({ api, toast }) {
                     {userDetail.cpos.map((cpo) => (
                       <tr key={cpo.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td style={{ padding: 6, fontWeight: 500 }}>{cpo.name}</td>
-                        <td style={{ padding: 6 }}>{(cpo.default_price / 100).toFixed(2)} /kWh</td>
+                        <td style={{ padding: 6 }}>{(cpo.default_price / 100).toFixed(2)} €/kWh</td>
                       </tr>
                     ))}
                   </tbody>

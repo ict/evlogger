@@ -225,7 +225,7 @@ export default function AdminView({ api, toast }) {
                         <td style={{ padding: 6 }}>{car.make || '—'}</td>
                         <td style={{ padding: 6 }}>{car.model || '—'}</td>
                         <td style={{ padding: 6 }}>{car.battery_capacity / 100} kWh</td>
-                        <td style={{ padding: 6 }}>{car.odometer / 100} km</td>
+                        <td style={{ padding: 6 }}>{car.odometer.toLocaleString('de-DE')} km</td>
                       </tr>
                     ))}
                   </tbody>

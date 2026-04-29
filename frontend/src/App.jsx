@@ -29,6 +29,7 @@ export default function App() {
   const [cars, setCars] = useState([]);
   const [selectedCarId, setSelectedCarId] = useState(() => safeStorage.get('cl_carId') || '');
   const [cpos, setCpos] = useState([]);
+  const [cposLoading, setCposLoading] = useState(false);
   const [charges, setCharges] = useState([]);
   const [chargesLoading, setChargesLoading] = useState(false);
   const [carDropdown, setCarDropdown] = useState(false);
@@ -83,7 +84,11 @@ export default function App() {
 
   const loadCpos = useCallback(() => {
     if (!apiClient) return;
-    apiClient.getCpos().then((d) => setCpos(d || [])).catch(() => {});
+    setCposLoading(true);
+    apiClient.getCpos()
+      .then((d) => setCpos(d || []))
+      .catch(() => {})
+      .finally(() => setCposLoading(false));
   }, [apiClient]);
 
   const loadCharges = useCallback(() => {
@@ -233,7 +238,7 @@ export default function App() {
         {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} tf={dashTf} setTf={handleSetDashTf} fromDate={dashFrom} setFromDate={handleSetDashFrom} toDate={dashTo} setToDate={handleSetDashTo} />}
         {tab === 'charges' && <ChargesView api={apiClient} charges={charges} loading={chargesLoading} reload={loadCharges} cars={cars} cpos={cpos} selectedCarId={selectedCarId} toast={toast} />}
         {tab === 'trends' && <YearlyTrendsView charges={charges} loading={chargesLoading} selectedCarId={selectedCarId} />}
-        {tab === 'cpos' && <CposView api={apiClient} toast={toast} />}
+        {tab === 'cpos' && <CposView api={apiClient} cpos={cpos} loading={cposLoading} reload={loadCpos} toast={toast} />}
         {tab === 'admin' && auth?.user?.is_admin && <AdminView api={apiClient} toast={toast} />}
       </main>
 

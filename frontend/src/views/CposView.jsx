@@ -1,24 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Spinner from '../components/Spinner.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import CpoModal from '../modals/CpoModal.jsx';
 import { fmtEur } from '../format.js';
 
-export default function CposView({ api, toast }) {
-  const [cpos, setCpos] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function CposView({ api, cpos, loading, reload, toast }) {
   const [showModal, setShowModal] = useState(false);
   const [editCpo, setEditCpo] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const load = () => {
-    setLoading(true);
-    api.getCpos().then((d) => setCpos(d || [])).finally(() => setLoading(false));
-  };
-  useEffect(() => { load(); }, []);
-
   const doDelete = async () => {
-    try { await api.deleteCpo(deleteTarget); toast('CPO deleted.', 'success'); load(); }
+    try { await api.deleteCpo(deleteTarget); toast('CPO deleted.', 'success'); reload(); }
     catch (e) { toast(e.message, 'error'); }
     setDeleteTarget(null);
   };
@@ -53,7 +45,7 @@ export default function CposView({ api, toast }) {
           </div>
         )}
       </div>
-      <CpoModal open={showModal} onClose={() => setShowModal(false)} onSaved={() => { setShowModal(false); load(); }} cpo={editCpo} api={api} toast={toast} />
+      <CpoModal open={showModal} onClose={() => setShowModal(false)} onSaved={() => { setShowModal(false); reload(); }} cpo={editCpo} api={api} toast={toast} />
       <ConfirmDialog open={!!deleteTarget} message="Delete this CPO? This cannot be undone." onConfirm={doDelete} onCancel={() => setDeleteTarget(null)} />
     </div>
   );

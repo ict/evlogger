@@ -47,5 +47,10 @@ export function makeApi(baseUrl, token) {
     register: (d) => req('/users/register', { method: 'POST', body: JSON.stringify(d) }),
     getAdminSettings: () => req('/admin/settings'),
     updateAdminSettings: (d) => req('/admin/settings', { method: 'PUT', body: JSON.stringify(d) }),
+    // User management (admin only)
+    getUsers: () => req('/admin/users'),
+    getUserDetail: (userId) => req(`/admin/users/${userId}`),
+    toggleUserAdmin: (userId) => req(`/admin/users/${userId}/toggle-admin`, { method: 'POST' }),
+    deleteUser: (userId) => req(`/admin/users/${userId}`, { method: 'DELETE' }),
   };
 }

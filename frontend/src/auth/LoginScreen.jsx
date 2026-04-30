@@ -59,6 +59,7 @@ function LoginForm({ onLogin, onDemo, onRegister }) {
       <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '11px 0', marginTop: 4 }} disabled={loading}>
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
+      {import.meta.env.VITE_DEMO_ENABLED === 'true' && <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 0' }}>
         <div style={{ flex: 1, height: 1, background: 'var(--border)' }}></div>
         <span style={{ fontSize: 12, color: 'var(--text-light)' }}>or</span>
@@ -68,6 +69,7 @@ function LoginForm({ onLogin, onDemo, onRegister }) {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
         Try demo — no account needed
       </button>
+      </>}
       <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-muted)' }}>
         No account?{' '}
         <button type="button" onClick={onRegister} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0 }}>

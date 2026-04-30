@@ -65,7 +65,10 @@ These can be set in `docker-compose.yml` or in a `.env` file when running locall
 ### Frontend
 
 The frontend is a static bundle. It calls the API at the relative path `/api`,
-which Caddy reverse-proxies to the backend container — no environment variables
-needed.
+which Caddy reverse-proxies to the backend container.
+
+| Variable             | Default | Description                                                                 |
+|----------------------|---------|-----------------------------------------------------------------------------|
+| `VITE_DEMO_ENABLED`  | `false` | Set to `true` to show the "Try demo" button on the login screen. Configure in `frontend/.env.local` for local dev or pass at build time for production. |
 
 > **Security note:** The `API_SECRET_KEY` in `docker-compose.yml` is a public example value. Always replace it with a random secret before exposing the service to a network.

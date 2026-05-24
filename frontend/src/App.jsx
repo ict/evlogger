@@ -240,7 +240,7 @@ export default function App() {
       <main className="main-content">
         {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} tf={dashTf} setTf={handleSetDashTf} fromDate={dashFrom} setFromDate={handleSetDashFrom} toDate={dashTo} setToDate={handleSetDashTo} />}
         {tab === 'charges' && <ChargesView api={apiClient} charges={charges} loading={chargesLoading} reload={loadCharges} cars={cars} cpos={cpos} selectedCarId={selectedCarId} toast={toast} />}
-        {tab === 'trends' && <YearlyTrendsView charges={charges} loading={chargesLoading} selectedCarId={selectedCarId} />}
+        {tab === 'trends' && <YearlyTrendsView charges={charges} loading={chargesLoading} selectedCarId={selectedCarId} cars={cars} />}
         {tab === 'cpos' && <CposView api={apiClient} cpos={cpos} loading={cposLoading} reload={loadCpos} toast={toast} />}
         {tab === 'admin' && auth?.user?.is_admin && <AdminView api={apiClient} toast={toast} />}
       </main>

@@ -45,9 +45,11 @@ function YearRow({ data }) {
   );
 }
 
-export default function YearlyTrendsView({ charges, loading, selectedCarId }) {
+export default function YearlyTrendsView({ charges, loading, selectedCarId, cars }) {
   const yearlyData = useMemo(() => {
     const carCharges = charges.filter((c) => c.car_id === selectedCarId);
+    const car = (cars || []).find((c) => c.id === selectedCarId);
+    const cap = car?.battery_capacity || 0;
     const byYear = {};
     carCharges.forEach((c) => {
       const yr = new Date(c.date).getFullYear();
@@ -56,22 +58,27 @@ export default function YearlyTrendsView({ charges, loading, selectedCarId }) {
     });
     const years = Object.keys(byYear).map(Number).sort();
 
-    // Segment-based attribution: walk all charges in odometer order; each
-    // segment (i → i+1) attributes kWh and cost of charge i to charge i's year.
+    // Fuel-log convention: charge i refills segment (i-1, i). Attribute to charge i's year.
+    // SoC-aware when both endpoints carry SoC and capacity known; fallback to raw kwh.
     const segByYear = {};
     const sortedAll = [...carCharges].filter((c) => c.car_odometer)
       .sort((a, b) => a.car_odometer - b.car_odometer);
     for (let i = 1; i < sortedAll.length; i++) {
-      const km = sortedAll[i].car_odometer - sortedAll[i - 1].car_odometer;
+      const a = sortedAll[i - 1], b = sortedAll[i];
+      const km = b.car_odometer - a.car_odometer;
       if (km <= 0) continue;
-      const src = sortedAll[i - 1];
-      const yr = new Date(src.date).getFullYear();
+      const haveSoc = cap > 0 && a.car_soc_after != null && b.car_soc_after != null;
+      const consumed = haveSoc
+        ? b.kwh_charged / 100 + cap * (a.car_soc_after - b.car_soc_after) / 100
+        : b.kwh_charged / 100;
+      if (consumed <= 0) continue;
+      const yr = new Date(b.date).getFullYear();
       if (!segByYear[yr]) segByYear[yr] = { km: 0, kwh: 0, costKm: 0, cost: 0 };
       segByYear[yr].km += km;
-      segByYear[yr].kwh += src.kwh_charged / 100;
-      if (src.price_total != null) {
+      segByYear[yr].kwh += consumed;
+      if (b.price_total != null) {
         segByYear[yr].costKm += km;
-        segByYear[yr].cost += src.price_total / 100;
+        segByYear[yr].cost += b.price_total / 100;
       }
     }
     const yearMetrics = (yr) => {
@@ -104,7 +111,7 @@ export default function YearlyTrendsView({ charges, loading, selectedCarId }) {
 
       return { year: yr, totalDist: m.totalDist, totalKwh, totalPrice, pricePer100km: m.pricePer100km, kwhPer100km: m.kwhPer100km, prev: prevData, count: cs.length };
     });
-  }, [charges, selectedCarId]);
+  }, [charges, selectedCarId, cars]);
 
   if (loading) return <Spinner />;
   if (yearlyData.length === 0) return (

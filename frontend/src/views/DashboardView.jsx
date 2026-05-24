@@ -21,6 +21,7 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
       .finally(() => setTfLoading(false));
   }, [api, tf, fromDate, toDate, selectedCarId]);
 
+  const car = cars.find((c) => c.id === selectedCarId);
   const stats = useMemo(() => {
     const c = [...tfCharges].sort((a, b) => new Date(a.date) - new Date(b.date));
     const totalKwh = c.reduce((s, x) => s + x.kwh_charged, 0) / 100;
@@ -28,16 +29,24 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
     const odos = withOdo.map((x) => x.car_odometer);
     const maxOdo = odos.length ? odos[odos.length - 1] : 0;
     const totalDist = odos.length > 1 ? odos[odos.length - 1] - odos[0] : 0;
+    const cap = car?.battery_capacity || 0;
     let segKwh = 0, segKm = 0, segCost = 0, segCostKm = 0;
+    // Fuel-log convention: charge i refills energy consumed in segment (i-1, i).
+    // SoC delta corrects when consecutive charges don't refill to same level.
     for (let i = 1; i < withOdo.length; i++) {
-      const km = withOdo[i].car_odometer - withOdo[i - 1].car_odometer;
-      if (km > 0) {
-        segKm += km;
-        segKwh += withOdo[i - 1].kwh_charged / 100;
-        if (withOdo[i - 1].price_total != null) {
-          segCost += withOdo[i - 1].price_total / 100;
-          segCostKm += km;
-        }
+      const a = withOdo[i - 1], b = withOdo[i];
+      const km = b.car_odometer - a.car_odometer;
+      if (km <= 0) continue;
+      const haveSoc = cap > 0 && a.car_soc_after != null && b.car_soc_after != null;
+      const consumed = haveSoc
+        ? b.kwh_charged / 100 + cap * (a.car_soc_after - b.car_soc_after) / 100
+        : b.kwh_charged / 100;
+      if (consumed <= 0) continue;
+      segKm += km;
+      segKwh += consumed;
+      if (b.price_total != null) {
+        segCost += b.price_total / 100;
+        segCostKm += km;
       }
     }
     const avgCons = segKm > 0 ? (segKwh / segKm * 100) : 0;
@@ -48,7 +57,7 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
     const avgPpkwh = pricedKwh > 0 ? totalCost / pricedKwh : 0;
     const costPer100km = segCostKm > 0 ? (segCost / segCostKm * 100) : 0;
     return { totalKwh, maxOdo, totalDist, avgCons, acKwh, dcKwh, totalCost, avgPpkwh, costPer100km, count: c.length };
-  }, [tfCharges]);
+  }, [tfCharges, car?.battery_capacity]);
 
   const chartData = useMemo(() => {
     const sorted = [...tfCharges].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -111,8 +120,6 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
       cpoValues: cpoEntries.map((e) => parseFloat(e[1].toFixed(1))),
     };
   }, [tfCharges]);
-
-  const car = cars.find((c) => c.id === selectedCarId);
 
   if (!selectedCarId) return (
     <div className="empty-state"><div className="empty-state-icon">🚗</div><div className="empty-state-text">No car selected. Add a car to get started.</div></div>

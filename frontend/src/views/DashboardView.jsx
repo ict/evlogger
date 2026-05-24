@@ -24,16 +24,29 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
   const stats = useMemo(() => {
     const c = [...tfCharges].sort((a, b) => new Date(a.date) - new Date(b.date));
     const totalKwh = c.reduce((s, x) => s + x.kwh_charged, 0) / 100;
-    const withOdo = c.filter((x) => x.car_odometer);
+    const withOdo = c.filter((x) => x.car_odometer).sort((a, b) => a.car_odometer - b.car_odometer);
     const odos = withOdo.map((x) => x.car_odometer);
-    const maxOdo = odos.length ? Math.max(...odos) : 0;
-    const totalDist = odos.length > 1 ? Math.max(...odos) - Math.min(...odos) : 0;
-    const avgCons = totalDist > 0 ? (totalKwh / totalDist * 100) : 0;
+    const maxOdo = odos.length ? odos[odos.length - 1] : 0;
+    const totalDist = odos.length > 1 ? odos[odos.length - 1] - odos[0] : 0;
+    let segKwh = 0, segKm = 0, segCost = 0, segCostKm = 0;
+    for (let i = 1; i < withOdo.length; i++) {
+      const km = withOdo[i].car_odometer - withOdo[i - 1].car_odometer;
+      if (km > 0) {
+        segKm += km;
+        segKwh += withOdo[i - 1].kwh_charged / 100;
+        if (withOdo[i - 1].price_total != null) {
+          segCost += withOdo[i - 1].price_total / 100;
+          segCostKm += km;
+        }
+      }
+    }
+    const avgCons = segKm > 0 ? (segKwh / segKm * 100) : 0;
     const acKwh = c.filter((x) => x.charge_type === 'AC').reduce((s, x) => s + x.kwh_charged, 0) / 100;
     const dcKwh = c.filter((x) => x.charge_type === 'DC').reduce((s, x) => s + x.kwh_charged, 0) / 100;
     const totalCost = c.filter((x) => x.price_total != null).reduce((s, x) => s + (x.price_total || 0), 0) / 100;
-    const avgPpkwh = c.length ? c.reduce((s, x) => s + x.price_per_kwh, 0) / c.length / 100 : 0;
-    const costPer100km = totalDist > 0 ? (totalCost / totalDist * 100) : 0;
+    const pricedKwh = c.filter((x) => x.price_total != null).reduce((s, x) => s + x.kwh_charged, 0) / 100;
+    const avgPpkwh = pricedKwh > 0 ? totalCost / pricedKwh : 0;
+    const costPer100km = segCostKm > 0 ? (segCost / segCostKm * 100) : 0;
     return { totalKwh, maxOdo, totalDist, avgCons, acKwh, dcKwh, totalCost, avgPpkwh, costPer100km, count: c.length };
   }, [tfCharges]);
 

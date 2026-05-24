@@ -56,33 +56,53 @@ export default function YearlyTrendsView({ charges, loading, selectedCarId }) {
     });
     const years = Object.keys(byYear).map(Number).sort();
 
+    // Segment-based attribution: walk all charges in odometer order; each
+    // segment (i → i+1) attributes kWh and cost of charge i to charge i's year.
+    const segByYear = {};
+    const sortedAll = [...carCharges].filter((c) => c.car_odometer)
+      .sort((a, b) => a.car_odometer - b.car_odometer);
+    for (let i = 1; i < sortedAll.length; i++) {
+      const km = sortedAll[i].car_odometer - sortedAll[i - 1].car_odometer;
+      if (km <= 0) continue;
+      const src = sortedAll[i - 1];
+      const yr = new Date(src.date).getFullYear();
+      if (!segByYear[yr]) segByYear[yr] = { km: 0, kwh: 0, costKm: 0, cost: 0 };
+      segByYear[yr].km += km;
+      segByYear[yr].kwh += src.kwh_charged / 100;
+      if (src.price_total != null) {
+        segByYear[yr].costKm += km;
+        segByYear[yr].cost += src.price_total / 100;
+      }
+    }
+    const yearMetrics = (yr) => {
+      const s = segByYear[yr];
+      if (!s) return { totalDist: 0, kwhPer100km: 0, pricePer100km: 0 };
+      return {
+        totalDist: s.km,
+        kwhPer100km: s.km > 0 ? s.kwh / s.km * 100 : 0,
+        pricePer100km: s.costKm > 0 ? s.cost / s.costKm * 100 : 0,
+      };
+    };
+
     return years.map((yr, idx) => {
-      const cs = byYear[yr].sort((a, b) => new Date(a.date) - new Date(b.date));
-      const withOdo = cs.filter((c) => c.car_odometer);
-      const odos = withOdo.map((c) => c.car_odometer);
-      const totalDist = odos.length >= 2 ? Math.max(...odos) - Math.min(...odos) : 0;
+      const cs = byYear[yr];
       const totalKwh = cs.reduce((s, c) => s + c.kwh_charged, 0) / 100;
-      const pricedCs = cs.filter((c) => c.price_total != null);
-      const totalPrice = pricedCs.reduce((s, c) => s + c.price_total, 0) / 100;
-      const pricePer100km = totalDist > 0 ? totalPrice / totalDist * 100 : 0;
-      const kwhPer100km = totalDist > 0 ? totalKwh / totalDist * 100 : 0;
+      const totalPrice = cs.filter((c) => c.price_total != null).reduce((s, c) => s + c.price_total, 0) / 100;
+      const m = yearMetrics(yr);
 
       const prev = idx > 0 ? years[idx - 1] : null;
       const prevData = prev != null ? (() => {
-        const pcs = byYear[prev].sort((a, b) => new Date(a.date) - new Date(b.date));
-        const pWithOdo = pcs.filter((c) => c.car_odometer).map((c) => c.car_odometer);
-        const pDist = pWithOdo.length >= 2 ? Math.max(...pWithOdo) - Math.min(...pWithOdo) : 0;
-        const pKwh = pcs.reduce((s, c) => s + c.kwh_charged, 0) / 100;
-        const pPrice = pcs.filter((c) => c.price_total != null).reduce((s, c) => s + c.price_total, 0) / 100;
+        const pcs = byYear[prev];
+        const pm = yearMetrics(prev);
         return {
-          totalDist: pDist,
-          totalPrice: pPrice,
-          pricePer100km: pDist > 0 ? pPrice / pDist * 100 : 0,
-          kwhPer100km: pDist > 0 ? pKwh / pDist * 100 : 0,
+          totalDist: pm.totalDist,
+          totalPrice: pcs.filter((c) => c.price_total != null).reduce((s, c) => s + c.price_total, 0) / 100,
+          pricePer100km: pm.pricePer100km,
+          kwhPer100km: pm.kwhPer100km,
         };
       })() : null;
 
-      return { year: yr, totalDist, totalKwh, totalPrice, pricePer100km, kwhPer100km, prev: prevData, count: cs.length };
+      return { year: yr, totalDist: m.totalDist, totalKwh, totalPrice, pricePer100km: m.pricePer100km, kwhPer100km: m.kwhPer100km, prev: prevData, count: cs.length };
     });
   }, [charges, selectedCarId]);
 

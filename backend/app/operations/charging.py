@@ -19,7 +19,7 @@ from app.util.timeparse import timeparse
 
 
 async def _check_plausible(
-    db: AsyncIOMotorClient, item: ChargeSubmission, owner_id: str, *, is_new: bool = True
+    db: AsyncIOMotorClient, item: ChargeSubmission, owner_id: str, *, is_new: bool = True, item_id: str | None = None
 ) -> None:
     """
     Check the "foreign keys" of the entity and fills optional (denormalized) fields
@@ -67,12 +67,16 @@ async def _check_plausible(
             msg = 'price_total is required when editing a charge'
             raise ValueError(msg)
 
-    # Find the previous charge before this one and the next one, if they exist
+    # Find the previous charge before this one and the next one, if they exist.
+    # Exclude the charge being edited (item_id) so a date submitted with lower
+    # sub-second precision than what's stored in MongoDB doesn't cause the charge
+    # to match itself as its own neighbour.
+    id_exclusion = {'_id': {'$ne': bson.ObjectId(item_id)}} if item_id else {}
     prev_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
-        {'car_id': item.car_id, 'date': {'$lt': item.date}}, sort=[('date', -1)], limit=1
+        {'car_id': item.car_id, 'date': {'$lt': item.date}, **id_exclusion}, sort=[('date', -1)], limit=1
     )
     next_charge = await get_collection(db, COLLECTION_CHARGES).find_one(
-        {'car_id': item.car_id, 'date': {'$gt': item.date}}, sort=[('date', 1)], limit=1
+        {'car_id': item.car_id, 'date': {'$gt': item.date}, **id_exclusion}, sort=[('date', 1)], limit=1
     )
     if prev_charge:
         prev_odo = prev_charge.get('car_odometer', 0)
@@ -154,7 +158,7 @@ class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
         item_data = old_item.model_dump()
         item_data.update(update_data)
         check_item = ChargeSubmission(**item_data)
-        await _check_plausible(db, check_item, owner_id, is_new=False)
+        await _check_plausible(db, check_item, owner_id, is_new=False, item_id=by_id)
         await get_collection(db, self.collection).update_one(
             {'_id': bson.ObjectId(by_id)}, {'$set': check_item.model_dump()}
         )

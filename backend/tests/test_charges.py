@@ -491,6 +491,64 @@ def test_authenticated_crud(test_app):
     assert response.status_code == 404, response.content
 
 
+def test_edit_newest_charge_increase_odometer(test_app):
+    """Regression: editing the newest charge with a date truncated to seconds (as a
+    browser typically does) must allow increasing the odometer, not reject it with
+    'must be less than the next charge'."""
+    token = register_and_login(test_app, 'newest_odo')
+
+    response = test_app.post(
+        '/car',
+        headers={'Authorization': f'Bearer {token}'},
+        json={'name': 'Odo Car', 'make': 'BMW', 'model': 'i4', 'color': '#ffffff', 'battery_capacity': 80},
+    )
+    assert response.status_code == 201
+    my_car = CarInDb(**response.json())
+
+    response = test_app.post(
+        '/cpo', headers={'Authorization': f'Bearer {token}'}, json={'name': 'Odo CPO', 'default_price': 40}
+    )
+    assert response.status_code == 201
+    my_cpo = CPOInDb(**response.json())
+
+    # Use a datetime with sub-second precision.  MongoDB truncates to milliseconds
+    # on write.  A browser editing the charge strips sub-second precision entirely,
+    # so item.date < stored_date, making the charge appear as its own "next" charge.
+    charge_date = datetime(2024, 6, 1, 10, 30, 45, 123456, UTC)
+    response = test_app.post(
+        '/charge',
+        headers={'Authorization': f'Bearer {token}'},
+        json=ChargeSubmission(
+            date=charge_date,
+            car_id=my_car.id,
+            car_odometer=50000,
+            cpo_id=my_cpo.id,
+            kwh_charged=3000,
+            charge_type=ChargeTypeEnum.ac,
+        ).model_dump(mode='json'),
+    )
+    assert response.status_code == 201
+    charge_id = response.json()['id']
+
+    # Simulate frontend sending the date truncated to whole seconds
+    truncated_date = charge_date.replace(microsecond=0)
+    response = test_app.put(
+        f'/charge/{charge_id}',
+        headers={'Authorization': f'Bearer {token}'},
+        json={
+            'date': truncated_date.isoformat(),
+            'car_id': my_car.id,
+            'cpo_id': my_cpo.id,
+            'car_odometer': 55000,
+            'kwh_charged': 3000,
+            'charge_type': 'AC',
+            'price_total': 1200,
+        },
+    )
+    assert response.status_code == 200, response.content
+    assert response.json()['car_odometer'] == 55000
+
+
 def test_csv_import(test_app):
     token = register_and_login(test_app, 'importer')
 

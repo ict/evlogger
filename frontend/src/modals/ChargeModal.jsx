@@ -2,12 +2,24 @@ import { useEffect, useState } from 'react';
 import Modal from '../components/Modal.jsx';
 import { fmtEur, fmtDateTimeInput } from '../format.js';
 
-export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos, api, toast, preselectedCarId }) {
+export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos, charges, api, toast, preselectedCarId }) {
+  const sortedCpos = (() => {
+    const counts = {};
+    for (const c of charges || []) counts[c.cpo_id] = (counts[c.cpo_id] || 0) + 1;
+    const top3 = [...cpos]
+      .filter((c) => counts[c.id])
+      .sort((a, b) => counts[b.id] - counts[a.id] || a.name.localeCompare(b.name))
+      .slice(0, 3);
+    const top3Ids = new Set(top3.map((c) => c.id));
+    const rest = cpos.filter((c) => !top3Ids.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+    return [...top3, ...rest];
+  })();
+
   const blank = () => ({
     date: new Date().toISOString().slice(0, 16),
     car_id: preselectedCarId || (cars[0]?.id || ''),
     kwh: '',
-    cpo_id: cpos[0]?.id || '',
+    cpo_id: sortedCpos[0]?.id || '',
     charge_type: 'AC',
     odometer: '',
     soc_after: '',
@@ -118,7 +130,7 @@ export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos
       <div className="form-group">
         <label className="form-label">CPO (Charge Point Operator)</label>
         <select className="form-input form-select" value={f.cpo_id} onChange={(e) => set('cpo_id', e.target.value)}>
-          {cpos.map((c) => <option key={c.id} value={c.id}>{c.name} — {fmtEur(c.default_price)} €/kWh</option>)}
+          {sortedCpos.map((c) => <option key={c.id} value={c.id}>{c.name} — {fmtEur(c.default_price)} €/kWh</option>)}
         </select>
       </div>
       <div className="form-group">

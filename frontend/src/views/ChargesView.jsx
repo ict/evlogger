@@ -122,6 +122,7 @@ export default function ChargesView({ api, charges, loading, reload, cars, cpos,
         charge={editCharge}
         cars={cars}
         cpos={cpos}
+        charges={charges}
         api={api}
         toast={toast}
         preselectedCarId={selectedCarId}

@@ -12,14 +12,14 @@ export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos
       .slice(0, 3);
     const top3Ids = new Set(top3.map((c) => c.id));
     const rest = cpos.filter((c) => !top3Ids.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
-    return [...top3, ...rest];
+    return { top3, rest };
   })();
 
   const blank = () => ({
     date: new Date().toISOString().slice(0, 16),
     car_id: preselectedCarId || (cars[0]?.id || ''),
     kwh: '',
-    cpo_id: sortedCpos[0]?.id || '',
+    cpo_id: sortedCpos.top3[0]?.id || sortedCpos.rest[0]?.id || '',
     charge_type: 'AC',
     odometer: '',
     soc_after: '',
@@ -130,7 +130,9 @@ export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos
       <div className="form-group">
         <label className="form-label">CPO (Charge Point Operator)</label>
         <select className="form-input form-select" value={f.cpo_id} onChange={(e) => set('cpo_id', e.target.value)}>
-          {sortedCpos.map((c) => <option key={c.id} value={c.id}>{c.name} — {fmtEur(c.default_price)} €/kWh</option>)}
+          {sortedCpos.top3.map((c) => <option key={c.id} value={c.id}>{c.name} — {fmtEur(c.default_price)} €/kWh</option>)}
+          {sortedCpos.top3.length > 0 && sortedCpos.rest.length > 0 && <option disabled>──────────</option>}
+          {sortedCpos.rest.map((c) => <option key={c.id} value={c.id}>{c.name} — {fmtEur(c.default_price)} €/kWh</option>)}
         </select>
       </div>
       <div className="form-group">

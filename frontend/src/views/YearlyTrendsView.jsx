@@ -137,25 +137,25 @@ export default function YearlyTrendsView({ charges, loading, selectedCarId, cars
           <div className="chart-card">
             <div className="chart-card-header"><div className="chart-card-title">Total Cost <span className="chart-card-unit">€ per year</span></div></div>
             <div className="chart-canvas-wrap">
-              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2)))} unit="€" color="oklch(0.52 0.19 252)" />
+              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2)))} unit="€" color="#2563eb" showValues valueDecimals={0} valueUnit="€" />
             </div>
           </div>
           <div className="chart-card">
             <div className="chart-card-header"><div className="chart-card-title">Price per 100 km <span className="chart-card-unit">€</span></div></div>
             <div className="chart-canvas-wrap">
-              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.pricePer100km.toFixed(2)))} unit="€/100 km" color="#f97316" />
+              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.pricePer100km.toFixed(2)))} unit="€/100 km" color="#f97316" showValues valueDecimals={2} valueUnit="€" />
             </div>
           </div>
           <div className="chart-card">
             <div className="chart-card-header"><div className="chart-card-title">Distance driven <span className="chart-card-unit">km per year</span></div></div>
             <div className="chart-canvas-wrap">
-              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => d.totalDist)} unit="km" color="#22c55e" />
+              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => d.totalDist)} unit="km" color="#22c55e" showValues valueDecimals={0} valueUnit="km" />
             </div>
           </div>
           <div className="chart-card">
             <div className="chart-card-header"><div className="chart-card-title">Consumption <span className="chart-card-unit">kWh / 100 km</span></div></div>
             <div className="chart-canvas-wrap">
-              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.kwhPer100km.toFixed(2)))} unit="kWh/100 km" color="#8b5cf6" />
+              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.kwhPer100km.toFixed(2)))} unit="kWh/100 km" color="#8b5cf6" showValues valueDecimals={1} valueUnit="kWh" />
             </div>
           </div>
         </div>

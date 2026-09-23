@@ -1,6 +1,6 @@
 import ChartCanvas from './ChartCanvas.jsx';
 
-const ACCENT = 'oklch(0.52 0.19 252)';
+const ACCENT = '#2563eb';
 const CHART_FONT = 'Plus Jakarta Sans';
 
 const BASE_OPTS = {
@@ -12,8 +12,10 @@ const BASE_OPTS = {
   },
 };
 
-export default function BarChart({ labels, values, unit, color, colors, horizontal }) {
-  const bgColors = colors ? colors : Array(values.length).fill((color || ACCENT) + 'cc');
+export default function BarChart({ labels, values, unit, color, colors, horizontal, showValues, valueDecimals = 0, valueUnit }) {
+  const base = color || ACCENT;
+  // Alpha suffix only works on hex; other notations (oklch(), rgb()) would become invalid.
+  const bgColors = colors ? colors : Array(values.length).fill(base.startsWith('#') ? base + 'cc' : base);
   const data = {
     labels,
     datasets: [{ data: values, backgroundColor: bgColors, borderRadius: 4, borderSkipped: false }],
@@ -21,9 +23,14 @@ export default function BarChart({ labels, values, unit, color, colors, horizont
   const axis = horizontal ? 'y' : 'x';
   const options = {
     ...BASE_OPTS, indexAxis: axis,
+    scales: showValues && !horizontal
+      ? { ...BASE_OPTS.scales, y: { ...BASE_OPTS.scales.y, grace: '10%' } }
+      : BASE_OPTS.scales,
+    layout: showValues ? { padding: horizontal ? { right: 44 } : { top: 18 } } : undefined,
     plugins: {
       ...BASE_OPTS.plugins,
       tooltip: { ...BASE_OPTS.plugins.tooltip, callbacks: { label: (ctx) => `${(horizontal ? ctx.parsed.x : ctx.parsed.y).toFixed(1)} ${unit || ''}` } },
+      valueLabels: { enabled: !!showValues, decimals: valueDecimals, unit: valueUnit },
     },
   };
   return <ChartCanvas type="bar" data={data} options={options} />;

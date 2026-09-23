@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { ensureSeasonalPluginRegistered } from './seasonalPlugin.js';
+import { ensureValueLabelsPluginRegistered } from './valueLabelsPlugin.js';
 
 let baseRegistered = false;
 function ensureBase() {
   if (baseRegistered) return;
   Chart.register(...registerables);
   ensureSeasonalPluginRegistered();
+  ensureValueLabelsPluginRegistered();
   baseRegistered = true;
 }
 

@@ -20,3 +20,16 @@ export function getTimeframeRange(tf, fromDate, toDate) {
   from.setMonth(from.getMonth() - months);
   return { from_date: from.toISOString(), to_date: now.toISOString() };
 }
+// Same convention as the rest of the app: decimals use a dot, only whole numbers get thousands separators
+export function fmtMoney(cents) { return fmtEur(cents); }
+export function fmtMoney0(cents) {
+  return Math.round(cents / 100).toLocaleString('de-DE');
+}
+export function fmtPerKm(eurPerKm) { return eurPerKm.toFixed(3); }
+export function fmtPer100km(eurPerKm) { return (eurPerKm * 100).toFixed(2); }
+export function fmtMonths(m) {
+  if (m == null) return '—';
+  const y = Math.floor(m / 12), mo = m % 12;
+  if (y === 0 && mo === 0) return '< 1 m';
+  return [y ? `${y} y` : '', mo ? `${mo} m` : ''].filter(Boolean).join(' ');
+}

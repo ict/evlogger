@@ -251,7 +251,7 @@ export default function App() {
       )}
 
       <main className="main-content">
-        {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} expenses={expenses} expensesLoading={expensesLoading} tf={dashTf} setTf={handleSetDashTf} fromDate={dashFrom} setFromDate={handleSetDashFrom} toDate={dashTo} setToDate={handleSetDashTo} />}
+        {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} charges={charges} chargesLoading={chargesLoading} expenses={expenses} expensesLoading={expensesLoading} tf={dashTf} setTf={handleSetDashTf} fromDate={dashFrom} setFromDate={handleSetDashFrom} toDate={dashTo} setToDate={handleSetDashTo} />}
         {tab === 'charges' && <ChargesView api={apiClient} charges={charges} loading={chargesLoading} reload={loadCharges} cars={cars} cpos={cpos} selectedCarId={selectedCarId} toast={toast} />}
         {tab === 'expenses' && <ExpensesView api={apiClient} expenses={expenses} loading={expensesLoading} reload={loadExpenses} cars={cars} selectedCarId={selectedCarId} toast={toast} />}
         {tab === 'trends' && <YearlyTrendsView expenses={expenses} expensesLoading={expensesLoading} charges={charges} loading={chargesLoading} selectedCarId={selectedCarId} cars={cars} />}

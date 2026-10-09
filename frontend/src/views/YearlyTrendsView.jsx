@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import Spinner from '../components/Spinner.jsx';
 import BarChart from '../components/charts/BarChart.jsx';
+import { yearlyCosts, usedCategories } from '../costs.js';
 
 function Delta({ val, prev, lowerIsBetter, unit, decimals = 2 }) {
   if (prev == null || prev === 0) return null;
@@ -18,12 +19,17 @@ function Delta({ val, prev, lowerIsBetter, unit, decimals = 2 }) {
   );
 }
 
-function YearRow({ data }) {
-  const { year, totalDist, totalPrice, pricePer100km, kwhPer100km, prev, count } = data;
+function YearRow({ data, showExpenses }) {
+  const { year, totalDist, totalPrice, otherCosts, totalCost, pricePer100km, kwhPer100km, prev, count } = data;
+  const d = (val, pv, show, decimals = 2) => (prev && show ? <Delta val={val} prev={pv} lowerIsBetter={true} unit="€" decimals={decimals} /> : null);
   const cards = [
     { label: 'Total Distance',   value: totalDist > 0 ? totalDist.toLocaleString('de-DE') + ' km' : '—', delta: prev && totalDist > 0 ? <Delta val={totalDist} prev={prev.totalDist} lowerIsBetter={false} unit="km" decimals={0} /> : null },
-    { label: 'Total Price',      value: totalPrice > 0 ? totalPrice.toFixed(2) + ' €' : '—',             delta: prev && totalPrice > 0 ? <Delta val={totalPrice} prev={prev.totalPrice} lowerIsBetter={true} unit="€" decimals={2} /> : null },
-    { label: 'Price per 100 km', value: pricePer100km > 0 ? pricePer100km.toFixed(2) + ' €' : '—',       delta: prev && pricePer100km > 0 ? <Delta val={pricePer100km} prev={prev.pricePer100km} lowerIsBetter={true} unit="€" decimals={2} /> : null },
+    { label: showExpenses ? 'Charging' : 'Total Price', value: totalPrice > 0 ? totalPrice.toFixed(2) + ' €' : '—', delta: d(totalPrice, prev?.totalPrice, totalPrice > 0) },
+    ...(showExpenses ? [
+      { label: 'Other costs', value: otherCosts > 0 ? otherCosts.toFixed(2) + ' €' : '—', delta: d(otherCosts, prev?.otherCosts, otherCosts > 0) },
+      { label: 'Total', value: totalCost > 0 ? totalCost.toFixed(2) + ' €' : '—', delta: d(totalCost, prev?.totalCost, totalCost > 0) },
+    ] : []),
+    { label: 'Price per 100 km', value: pricePer100km > 0 ? pricePer100km.toFixed(2) + ' €' : '—',       delta: d(pricePer100km, prev?.pricePer100km, pricePer100km > 0) },
     { label: 'kWh / 100 km',     value: kwhPer100km > 0 ? kwhPer100km.toFixed(2) : '—',                   delta: prev && kwhPer100km > 0 ? <Delta val={kwhPer100km} prev={prev.kwhPer100km} lowerIsBetter={true} unit="kWh" decimals={2} /> : null },
   ];
   return (
@@ -32,7 +38,7 @@ function YearRow({ data }) {
         {year}
         <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-light)', marginLeft: 10 }}>{count} session{count !== 1 ? 's' : ''}</span>
       </div>
-      <div className="stats-grid">
+      <div className={`stats-grid${showExpenses ? ' stats-grid-3' : ''}`}>
         {cards.map((c) => (
           <div key={c.label} className="stat-card">
             <div className="stat-label">{c.label}</div>
@@ -45,7 +51,7 @@ function YearRow({ data }) {
   );
 }
 
-export default function YearlyTrendsView({ charges, loading, selectedCarId, cars }) {
+export default function YearlyTrendsView({ charges, loading, expenses = [], expensesLoading, selectedCarId, cars }) {
   const yearlyData = useMemo(() => {
     const carCharges = charges.filter((c) => c.car_id === selectedCarId);
     const car = (cars || []).find((c) => c.id === selectedCarId);
@@ -56,7 +62,10 @@ export default function YearlyTrendsView({ charges, loading, selectedCarId, cars
       if (!byYear[yr]) byYear[yr] = [];
       byYear[yr].push(c);
     });
-    const years = Object.keys(byYear).map(Number).sort();
+    const costs = yearlyCosts(charges, expenses, selectedCarId);
+    // Union: years with only expenses (no charges) still appear
+    const years = [...new Set([...Object.keys(byYear), ...Object.keys(costs)].map(Number))].sort((a, b) => a - b);
+    const cents = (yr) => costs[yr] || { charging: 0, expenses: 0, byCategory: {} };
 
     // Fuel-log convention: charge i refills segment (i-1, i). Attribute to charge i's year.
     // SoC-aware when both endpoints carry SoC and capacity known; fallback to raw kwh.
@@ -91,37 +100,38 @@ export default function YearlyTrendsView({ charges, loading, selectedCarId, cars
       };
     };
 
-    return years.map((yr, idx) => {
-      const cs = byYear[yr];
-      const totalKwh = cs.reduce((s, c) => s + c.kwh_charged, 0) / 100;
-      const totalPrice = cs.filter((c) => c.price_total != null).reduce((s, c) => s + c.price_total, 0) / 100;
+    const yearFigures = (yr) => {
       const m = yearMetrics(yr);
+      const c = cents(yr);
+      const totalPrice = c.charging / 100;
+      const otherCosts = c.expenses / 100;
+      const totalCost = totalPrice + otherCosts;
+      return {
+        ...m, totalPrice, otherCosts, totalCost, byCategory: c.byCategory,
+        allInPer100km: m.totalDist > 0 ? totalCost / m.totalDist * 100 : 0,
+      };
+    };
 
-      const prev = idx > 0 ? years[idx - 1] : null;
-      const prevData = prev != null ? (() => {
-        const pcs = byYear[prev];
-        const pm = yearMetrics(prev);
-        return {
-          totalDist: pm.totalDist,
-          totalPrice: pcs.filter((c) => c.price_total != null).reduce((s, c) => s + c.price_total, 0) / 100,
-          pricePer100km: pm.pricePer100km,
-          kwhPer100km: pm.kwhPer100km,
-        };
-      })() : null;
-
-      return { year: yr, totalDist: m.totalDist, totalKwh, totalPrice, pricePer100km: m.pricePer100km, kwhPer100km: m.kwhPer100km, prev: prevData, count: cs.length };
+    return years.map((yr, idx) => {
+      const cs = byYear[yr] || [];
+      const totalKwh = cs.reduce((s, c) => s + c.kwh_charged, 0) / 100;
+      const prev = idx > 0 ? yearFigures(years[idx - 1]) : null;
+      return { year: yr, ...yearFigures(yr), totalKwh, prev, count: cs.length };
     });
-  }, [charges, selectedCarId, cars]);
+  }, [charges, expenses, selectedCarId, cars]);
 
-  if (loading) return <Spinner />;
+  const categories = useMemo(() => usedCategories(expenses, selectedCarId), [expenses, selectedCarId]);
+
+  if (loading || expensesLoading) return <Spinner />;
   if (yearlyData.length === 0) return (
     <div className="empty-state" style={{ marginTop: 60 }}>
       <div className="empty-state-icon">📅</div>
-      <div className="empty-state-text">No charge data yet to display yearly trends.</div>
+      <div className="empty-state-text">No charge or expense data yet to display yearly trends.</div>
     </div>
   );
 
   const hasMultiple = yearlyData.length > 1;
+  const labels = yearlyData.map((d) => String(d.year));
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -130,32 +140,51 @@ export default function YearlyTrendsView({ charges, loading, selectedCarId, cars
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Full dataset — all time</span>
       </div>
 
-      {yearlyData.map((d) => <YearRow key={d.year} data={d} />)}
+      {yearlyData.map((d) => <YearRow key={d.year} data={d} showExpenses={categories.length > 0} />)}
 
       {hasMultiple && (
         <div className="charts-grid" style={{ marginTop: 8 }}>
-          <div className="chart-card">
-            <div className="chart-card-header"><div className="chart-card-title">Total Cost <span className="chart-card-unit">€ per year</span></div></div>
-            <div className="chart-canvas-wrap">
-              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2)))} unit="€" color="#2563eb" showValues valueDecimals={0} valueUnit="€" />
+          <div className="chart-card" style={categories.length > 0 ? { gridColumn: '1 / -1' } : undefined}>
+            <div className="chart-card-header"><div className="chart-card-title">Total Cost<span className="chart-card-unit">€ per year{categories.length > 0 ? ' · charging + expenses' : ''}</span></div></div>
+            <div className="chart-canvas-wrap" style={categories.length > 0 ? { height: 280 } : undefined}>
+              {categories.length > 0 ? (
+                <BarChart
+                  labels={labels}
+                  datasets={[
+                    { label: 'Charging', values: yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2))), color: '#2563eb' },
+                    ...categories.map((c) => ({ label: c.label, values: yearlyData.map((d) => parseFloat(((d.byCategory[c.key] || 0) / 100).toFixed(2))), color: c.color })),
+                  ]}
+                  stacked unit="€" showValues valueDecimals={0} valueUnit="€"
+                />
+              ) : (
+                <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2)))} unit="€" color="#2563eb" showValues valueDecimals={0} valueUnit="€" />
+              )}
             </div>
           </div>
           <div className="chart-card">
             <div className="chart-card-header"><div className="chart-card-title">Price per 100 km <span className="chart-card-unit">€</span></div></div>
             <div className="chart-canvas-wrap">
-              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.pricePer100km.toFixed(2)))} unit="€/100 km" color="#f97316" showValues valueDecimals={2} valueUnit="€" />
+              <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.pricePer100km.toFixed(2)))} unit="€/100 km" color="#f97316" showValues valueDecimals={2} valueUnit="€" />
             </div>
           </div>
+          {categories.length > 0 && (
+            <div className="chart-card">
+              <div className="chart-card-header"><div className="chart-card-title">Cost per 100 km (all-in) <span className="chart-card-unit">€ · charging + expenses</span></div></div>
+              <div className="chart-canvas-wrap">
+                <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.allInPer100km.toFixed(2)))} unit="€/100 km" color="#0ea5e9" showValues valueDecimals={2} valueUnit="€" />
+              </div>
+            </div>
+          )}
           <div className="chart-card">
             <div className="chart-card-header"><div className="chart-card-title">Distance driven <span className="chart-card-unit">km per year</span></div></div>
             <div className="chart-canvas-wrap">
-              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => d.totalDist)} unit="km" color="#22c55e" showValues valueDecimals={0} valueUnit="km" />
+              <BarChart labels={labels} values={yearlyData.map((d) => d.totalDist)} unit="km" color="#22c55e" showValues valueDecimals={0} valueUnit="km" />
             </div>
           </div>
           <div className="chart-card">
             <div className="chart-card-header"><div className="chart-card-title">Consumption <span className="chart-card-unit">kWh / 100 km</span></div></div>
             <div className="chart-canvas-wrap">
-              <BarChart labels={yearlyData.map((d) => String(d.year))} values={yearlyData.map((d) => parseFloat(d.kwhPer100km.toFixed(2)))} unit="kWh/100 km" color="#8b5cf6" showValues valueDecimals={1} valueUnit="kWh" />
+              <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.kwhPer100km.toFixed(2)))} unit="kWh/100 km" color="#8b5cf6" showValues valueDecimals={1} valueUnit="kWh" />
             </div>
           </div>
         </div>

@@ -3,11 +3,64 @@ import Spinner from '../components/Spinner.jsx';
 import TimeframeBar from '../components/TimeframeBar.jsx';
 import LineChart from '../components/charts/LineChart.jsx';
 import BarChart from '../components/charts/BarChart.jsx';
-import { getTimeframeRange } from '../format.js';
+import { CategoryChip } from '../components/icons.jsx';
+import { getTimeframeRange, fmtMoney, fmtMoney0, fmtPerKm, fmtPer100km, fmtMonths } from '../format.js';
+import { computeTco, expensesInRange, sumExpenses, categoryBreakdown } from '../costs.js';
 
 const CPO_PALETTE = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#a855f7'];
 
-export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fromDate, setFromDate, toDate, setToDate }) {
+function TcoCard({ tco, car, incomplete }) {
+  const { retired, hasPurchase, charging, expenses, byCategory, capital, km, running, allIn, runningPerKm, allInPerKm, months, depreciationPerYear } = tco;
+  const perKm = (v) => (v == null ? '—' : fmtPer100km(v));
+  const sub = (v) => (v == null ? '' : `${fmtPerKm(v)} €/km`);
+  const rows = [
+    ...(hasPurchase ? [[retired ? 'Depreciation (purchase − sale)' : 'Purchase price', capital]] : []),
+    ['Charging', charging],
+    ['Other costs', expenses],
+  ];
+  const total = hasPurchase ? allIn : running;
+  return (
+    <>
+      <div className="stat-sub" style={{ marginTop: 0, marginBottom: 14 }}>
+        {car.purchase_date ? `Owned ${fmtMonths(months)}${retired ? ' (sold)' : ''} · ` : ''}{km > 0 ? `${km.toLocaleString('de-DE')} km driven` : 'no distance recorded'}
+      </div>
+      <div className="tco-grid">
+        <div>
+          <div className="tco-label">Running cost <span>charging + other</span></div>
+          <div className="stat-value" style={{ color: 'var(--accent)' }}>{perKm(runningPerKm)}<span className="stat-unit">€ / 100 km</span></div>
+          <div className="stat-sub">{sub(runningPerKm)}</div>
+        </div>
+        <div>
+          <div className="tco-label">All-in cost <span>{retired ? 'final' : 'to date'}</span></div>
+          {hasPurchase ? (
+            <>
+              <div className="stat-value">{perKm(allInPerKm)}<span className="stat-unit">€ / 100 km</span></div>
+              <div className="stat-sub">{sub(allInPerKm)}{depreciationPerYear != null ? ` · ${fmtMoney0(depreciationPerYear)} € depreciation / year` : ''}</div>
+            </>
+          ) : (
+            <div className="stat-sub" style={{ marginTop: 0 }}>Add purchase price in car settings for all-in cost</div>
+          )}
+        </div>
+        <div>
+          {rows.map(([label, v]) => (
+            <div key={label} className="tco-row"><span>{label}</span><span>{fmtMoney(v)} €</span></div>
+          ))}
+          <div className="tco-row tco-total"><span>Total</span><span>{fmtMoney(total)} €</span></div>
+        </div>
+      </div>
+      {byCategory.length > 0 && (
+        <div className="cost-cats" style={{ marginTop: 14 }}>
+          {byCategory.map((c) => (
+            <span key={c.key} className="cost-cat" title={c.label}><CategoryChip category={c.key} size={20} />{c.label} {fmtMoney0(c.amount)} €</span>
+          ))}
+        </div>
+      )}
+      {incomplete && <div className="stat-sub" style={{ marginTop: 12, fontSize: 11.5 }}>Only the latest 500 charges/expenses are loaded — lifetime figures may be incomplete.</div>}
+    </>
+  );
+}
+
+export default function DashboardView({ api, selectedCarId, cars, charges = [], chargesLoading, expenses = [], tf, setTf, fromDate, setFromDate, toDate, setToDate }) {
   const [tfCharges, setTfCharges] = useState([]);
   const [tfLoading, setTfLoading] = useState(false);
 
@@ -22,6 +75,14 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
   }, [api, tf, fromDate, toDate, selectedCarId]);
 
   const car = cars.find((c) => c.id === selectedCarId);
+
+  // Other costs within the selected range (client-side, from App-level expenses)
+  const rangeExpenses = useMemo(
+    () => expensesInRange(expenses, selectedCarId, getTimeframeRange(tf, fromDate, toDate)),
+    [expenses, selectedCarId, tf, fromDate, toDate],
+  );
+  const otherCosts = useMemo(() => ({ total: sumExpenses(rangeExpenses), byCategory: categoryBreakdown(rangeExpenses) }), [rangeExpenses]);
+  const tco = useMemo(() => (car ? computeTco(car, charges, expenses) : null), [car, charges, expenses]);
   const stats = useMemo(() => {
     const c = [...tfCharges].sort((a, b) => new Date(a.date) - new Date(b.date));
     const totalKwh = c.reduce((s, x) => s + x.kwh_charged, 0) / 100;
@@ -137,7 +198,7 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
 
       {tfLoading ? <Spinner /> : (
         <>
-          <div className="stats-grid">
+          <div className="stats-grid stats-grid-5">
             <div className="stat-card">
               <div className="stat-label">Avg. Consumption</div>
               <div className="stat-value" style={{ color: 'var(--accent)' }}>{stats.avgCons > 0 ? stats.avgCons.toFixed(1) : '—'}<span className="stat-unit">kWh/100km</span></div>
@@ -172,6 +233,23 @@ export default function DashboardView({ api, selectedCarId, cars, tf, setTf, fro
               <div className="stat-sub">avg {stats.avgPpkwh > 0 ? stats.avgPpkwh.toFixed(3) + ' €/kWh' : '—'}</div>
               {stats.costPer100km > 0 && <div style={{ marginTop: 6, fontSize: 12.5, color: 'var(--accent)', fontWeight: 600 }}>{stats.costPer100km.toFixed(2)} €/100km</div>}
             </div>
+            <div className="stat-card">
+              <div className="stat-label">Other costs</div>
+              <div className="stat-value">{fmtMoney(otherCosts.total)}<span className="stat-unit">€</span></div>
+              <div className="stat-sub">{rangeExpenses.length} expense{rangeExpenses.length !== 1 ? 's' : ''} in period</div>
+              {otherCosts.byCategory.length > 0 && (
+                <div className="cost-cats">
+                  {otherCosts.byCategory.map((c) => (
+                    <span key={c.key} className="cost-cat" title={c.label}><CategoryChip category={c.key} size={18} />{fmtMoney0(c.amount)}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="stat-card" style={{ marginBottom: 20 }}>
+            <div className="stat-label">Total cost of ownership</div>
+            {tco && <TcoCard tco={tco} car={car} incomplete={charges.length >= 500 || expenses.length >= 500} />}
           </div>
 
           <div className="charts-grid">

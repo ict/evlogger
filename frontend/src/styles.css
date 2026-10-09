@@ -66,7 +66,7 @@ html, body { height: 100%; font-family: 'Plus Jakarta Sans', sans-serif; backgro
 .chart-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }
 .chart-card-header { padding: 14px 18px 0; }
 .chart-card-title { font-size: 13px; font-weight: 600; color: var(--text); }
-.chart-card-unit { font-size: 11px; color: var(--text-light); font-weight: 400; }
+.chart-card-unit { font-size: 11px; color: var(--text-light); font-weight: 400; margin-left: 4px; }
 .chart-canvas-wrap { padding: 12px 14px 14px; height: 200px; position: relative; }
 
 /* --- Table --- */
@@ -235,7 +235,9 @@ tr:hover .row-actions { opacity: 1; }
 .exp-year + .exp-row, .exp-row + .exp-year { border-top: 0; }
 .exp-year:not(:first-child) { border-top: 1px solid var(--border); }
 .exp-year-sum { color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.exp-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.1s; }
+/* Line the year sum up with the row amounts: row padding + gap + edit/delete buttons (2 × 28px + 6px) */
+.exp-year { padding-right: 90px; }
+.exp-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
 .exp-row:hover { background: #fafbff; }
 .exp-row:hover .row-actions { opacity: 1; }
 .exp-date { width: 64px; flex-shrink: 0; color: var(--text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -247,9 +249,10 @@ tr:hover .row-actions { opacity: 1; }
 .cat-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); font-family: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; text-align: center; line-height: 1.2; }
 .cat-btn:hover { background: var(--bg); }
 .form-section { margin: 20px 0 14px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-light); }
-@media (hover: none) { .exp-row .row-actions { opacity: 1; } }
+@media (hover: none) { .row-actions { opacity: 1; } }
 @media (max-width: 640px) {
   .exp-row { padding: 10px 12px; gap: 10px; }
+  .exp-year { padding-right: 84px; }
   .exp-date { width: 52px; font-size: 12px; }
   .cat-grid { gap: 6px; }
   .cat-btn { font-size: 10.5px; padding: 8px 2px; }

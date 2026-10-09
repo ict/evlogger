@@ -191,7 +191,7 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
   );
 
   return (
-    <div>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div className="section-title">{car ? `${car.name}` : 'Dashboard'}</div>
@@ -264,11 +264,6 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
             </div>
           </div>
 
-          <div className="stat-card" style={{ marginBottom: 20 }}>
-            <div className="stat-label">Total cost of ownership</div>
-            {tco && <TcoCard tco={tco} car={car} incomplete={charges.length >= 500 || expenses.length >= 500} />}
-          </div>
-
           <div className="charts-grid">
             <div className="chart-card">
               <div className="chart-card-header"><div className="chart-card-title">Consumption <span className="chart-card-unit">kWh/100 km</span></div></div>
@@ -302,6 +297,11 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
                   : <div className="empty-state" style={{ padding: 30 }}><div style={{ fontSize: 12, color: 'var(--text-light)' }}>No odometer data</div></div>}
               </div>
             </div>
+          </div>
+
+          <div className="stat-card" style={{ marginTop: 20 }}>
+            <div className="stat-label">Total cost of ownership</div>
+            {tco && <TcoCard tco={tco} car={car} incomplete={charges.length >= 500 || expenses.length >= 500} />}
           </div>
         </>
       )}

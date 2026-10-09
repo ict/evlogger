@@ -108,7 +108,7 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
       const totalCost = totalPrice + otherCosts;
       return {
         ...m, totalPrice, otherCosts, totalCost, byCategory: c.byCategory,
-        allInPer100km: m.totalDist > 0 ? totalCost / m.totalDist * 100 : 0,
+        runningPer100km: m.totalDist > 0 ? totalCost / m.totalDist * 100 : 0,
       };
     };
 
@@ -144,23 +144,6 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
 
       {hasMultiple && (
         <div className="charts-grid" style={{ marginTop: 8 }}>
-          <div className="chart-card" style={categories.length > 0 ? { gridColumn: '1 / -1' } : undefined}>
-            <div className="chart-card-header"><div className="chart-card-title">Total Cost<span className="chart-card-unit">€ per year{categories.length > 0 ? ' · charging + expenses' : ''}</span></div></div>
-            <div className="chart-canvas-wrap" style={categories.length > 0 ? { height: 280 } : undefined}>
-              {categories.length > 0 ? (
-                <BarChart
-                  labels={labels}
-                  datasets={[
-                    { label: 'Charging', values: yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2))), color: '#2563eb' },
-                    ...categories.map((c) => ({ label: c.label, values: yearlyData.map((d) => parseFloat(((d.byCategory[c.key] || 0) / 100).toFixed(2))), color: c.color })),
-                  ]}
-                  stacked unit="€" showValues valueDecimals={0} valueUnit="€"
-                />
-              ) : (
-                <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2)))} unit="€" color="#2563eb" showValues valueDecimals={0} valueUnit="€" />
-              )}
-            </div>
-          </div>
           <div className="chart-card">
             <div className="chart-card-header"><div className="chart-card-title">Price per 100 km <span className="chart-card-unit">€</span></div></div>
             <div className="chart-canvas-wrap">
@@ -169,9 +152,9 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
           </div>
           {categories.length > 0 && (
             <div className="chart-card">
-              <div className="chart-card-header"><div className="chart-card-title">Cost per 100 km (all-in) <span className="chart-card-unit">€ · charging + expenses</span></div></div>
+              <div className="chart-card-header"><div className="chart-card-title">Running cost per 100 km <span className="chart-card-unit">€ · charging + other</span></div></div>
               <div className="chart-canvas-wrap">
-                <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.allInPer100km.toFixed(2)))} unit="€/100 km" color="#0ea5e9" showValues valueDecimals={2} valueUnit="€" />
+                <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.runningPer100km.toFixed(2)))} unit="€/100 km" color="#0ea5e9" showValues valueDecimals={2} valueUnit="€" />
               </div>
             </div>
           )}
@@ -185,6 +168,23 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
             <div className="chart-card-header"><div className="chart-card-title">Consumption <span className="chart-card-unit">kWh / 100 km</span></div></div>
             <div className="chart-canvas-wrap">
               <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.kwhPer100km.toFixed(2)))} unit="kWh/100 km" color="#8b5cf6" showValues valueDecimals={1} valueUnit="kWh" />
+            </div>
+          </div>
+          <div className="chart-card" style={{ gridColumn: '1 / -1' }}>
+            <div className="chart-card-header"><div className="chart-card-title">Total Cost<span className="chart-card-unit">€ per year{categories.length > 0 ? ' · charging + expenses' : ''}</span></div></div>
+            <div className="chart-canvas-wrap" style={{ height: categories.length > 0 ? 380 : 260 }}>
+              {categories.length > 0 ? (
+                <BarChart
+                  labels={labels}
+                  datasets={[
+                    { label: 'Charging', values: yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2))), color: '#2563eb' },
+                    ...categories.map((c) => ({ label: c.label, values: yearlyData.map((d) => parseFloat(((d.byCategory[c.key] || 0) / 100).toFixed(2))), color: c.color })),
+                  ]}
+                  stacked unit="€" showValues valueDecimals={0} valueUnit="€"
+                />
+              ) : (
+                <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2)))} unit="€" color="#2563eb" showValues valueDecimals={0} valueUnit="€" />
+              )}
             </div>
           </div>
         </div>

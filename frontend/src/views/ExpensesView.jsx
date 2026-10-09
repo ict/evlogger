@@ -66,7 +66,7 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
   const openAdd = () => { setEditExpense(null); setShowModal(true); };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div className="section-header">
         <div className="section-title">Expenses</div>
         <button
@@ -129,7 +129,7 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
                 {g.items.map((e) => {
                   const c = EXPENSE_CATEGORY_MAP[catKey(e)];
                   return (
-                    <div key={e.id} className="exp-row" onClick={() => { setEditExpense(e); setShowModal(true); }}>
+                    <div key={e.id} className="exp-row">
                       <CategoryChip category={catKey(e)} />
                       <div className="exp-date">{fmtDate(e.date)}</div>
                       <div className="exp-main">
@@ -137,7 +137,8 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
                         {e.note && <div className="exp-note" title={e.note}>{e.note}</div>}
                       </div>
                       <div className="exp-amount">{fmtEur(e.amount)} €</div>
-                      <div className="row-actions" onClick={(ev) => ev.stopPropagation()}>
+                      <div className="row-actions">
+                        <button className="action-btn" title="Edit" onClick={() => { setEditExpense(e); setShowModal(true); }}>✎</button>
                         <button className="action-btn danger" title="Delete" onClick={() => setDeleteTarget(e.id)}>🗑</button>
                       </div>
                     </div>

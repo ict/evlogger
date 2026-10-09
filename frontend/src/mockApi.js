@@ -1,147 +1,179 @@
 const MOCK_CPOS = [
-  { id: 'cpo1', name: 'Tesla Supercharger', default_price: 42, owner_id: 'demo' },
-  { id: 'cpo2', name: 'Ionity', default_price: 79, owner_id: 'demo' },
-  { id: 'cpo3', name: 'EnBW', default_price: 45, owner_id: 'demo' },
+  { id: 'cpo0', name: 'Home Wallbox', default_price: 31, owner_id: 'demo' },
+  { id: 'cpo1', name: 'Tesla Supercharger', default_price: 49, owner_id: 'demo' },
+  { id: 'cpo2', name: 'Ionity', default_price: 69, owner_id: 'demo' },
+  { id: 'cpo3', name: 'EnBW', default_price: 59, owner_id: 'demo' },
   { id: 'cpo4', name: 'REWE Charging', default_price: 39, owner_id: 'demo' },
-  { id: 'cpo5', name: 'Allego', default_price: 52, owner_id: 'demo' },
+  { id: 'cpo5', name: 'Allego', default_price: 55, owner_id: 'demo' },
 ];
 const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const monthsAgo = (n, day = 1) => { const d = new Date(); d.setMonth(d.getMonth() - n); d.setDate(day); d.setHours(12, 0, 0, 0); return d; };
-const rnd = (a, b) => Math.floor(a + Math.random() * (b - a));
 const MOCK_CARS = [
-  { id: 'car1', name: 'Model Y', make: 'Tesla', model: 'Model Y LR', color: '#dc2626', odometer: 18000, battery_capacity: 75, owner_id: 'demo',
-    purchase_price: 4890000, purchase_date: ymd(monthsAgo(26, 12)), purchase_odometer: 4200, sale_price: null, sale_date: null, sale_odometer: null, retired: false },
-  { id: 'car2', name: 'ID.4 Pro', make: 'Volkswagen', model: 'ID.4 Pro', color: '#2563eb', odometer: 8000, battery_capacity: 77, owner_id: 'demo',
-    purchase_price: 4290000, purchase_date: ymd(monthsAgo(8, 3)), purchase_odometer: 1800, sale_price: null, sale_date: null, sale_odometer: null, retired: false },
+  { id: 'car1', name: 'Model Y', make: 'Tesla', model: 'Model Y LR', color: '#dc2626', odometer: 0, battery_capacity: 75, owner_id: 'demo',
+    purchase_price: 4590000, purchase_date: ymd(monthsAgo(26, 12)), purchase_odometer: 12400, sale_price: null, sale_date: null, sale_odometer: null, retired: false },
+  { id: 'car2', name: 'ID.4 Pro', make: 'Volkswagen', model: 'ID.4 Pro', color: '#2563eb', odometer: 0, battery_capacity: 77, owner_id: 'demo',
+    purchase_price: 3790000, purchase_date: ymd(monthsAgo(8, 3)), purchase_odometer: 9800, sale_price: null, sale_date: null, sale_odometer: null, retired: false },
   { id: 'car3', name: 'Zoe', make: 'Renault', model: 'Zoe R135', color: '#16a34a', odometer: 0, battery_capacity: 52, owner_id: 'demo',
-    purchase_price: 2450000, purchase_date: ymd(monthsAgo(52, 5)), purchase_odometer: 0, sale_price: 1180000, sale_date: ymd(monthsAgo(16, 20)), sale_odometer: 0, retired: true },
+    purchase_price: 3290000, purchase_date: ymd(monthsAgo(52, 5)), purchase_odometer: 0, sale_price: 1390000, sale_date: ymd(monthsAgo(16, 20)), sale_odometer: null, retired: true },
 ];
 
-function generateMockCharges() {
-  const list = [];
-  let uid = 1;
-  const cpoPrices = { cpo1: 42, cpo2: 79, cpo3: 45, cpo4: 39, cpo5: 52 };
-  const cpoNames = { cpo1: 'Tesla Supercharger', cpo2: 'Ionity', cpo3: 'EnBW', cpo4: 'REWE Charging', cpo5: 'Allego' };
+// How each demo car is driven, charged and paid for
+const PROFILES = {
+  car1: {
+    seed: 11, consumption: 16.5, commute: 36, weekend: [0, 80], tripEvery: 55, trip: [320, 680],
+    home: true, dc: ['cpo1', 'cpo1', 'cpo2'], insurance: [108000, 4000], adac: true,
+    // Tesla: no fixed service plan, cabin filter yearly, HU every two years
+    maintenance: (y) => [['Cabin filter', 7900], ...(y % 2 === 1 ? [['HU / TÜV inspection', 15900]] : [])],
+    summerTiresKm: 38000, tireSet: 118000, winterSet: 162000,
+    oneOff: [[3, 'tax', 12850, 'Registration & plates'], [9, 'accessories', 12900, 'All-weather floor mats'], [60, 'accessories', 24900, 'Mobile charging cable'], [420, 'accessories', 39900, 'Roof box']],
+  },
+  car2: {
+    seed: 22, consumption: 18.5, commute: 26, weekend: [0, 70], tripEvery: 75, trip: [280, 520],
+    home: false, ac: ['cpo4', 'cpo4', 'cpo3'], dc: ['cpo2', 'cpo3', 'cpo5'], insurance: [86000, 0], adac: false,
+    maintenance: () => [],
+    summerTiresKm: 45000, tireSet: 96000, winterSet: 138000,
+    oneOff: [[2, 'tax', 9800, 'Registration & plates'], [14, 'accessories', 8900, 'Trunk liner']],
+  },
+  car3: {
+    seed: 33, consumption: 15.5, commute: 22, weekend: [0, 50], tripEvery: 120, trip: [200, 360],
+    home: true, dc: ['cpo3', 'cpo5'], insurance: [56000, 2500], adac: true,
+    // Renault requires a yearly service for the battery warranty
+    maintenance: (y) => [['Annual service', 18900 + y * 1500], ...(y === 2 ? [['HU / TÜV inspection', 14900], ['12V battery', 16900]] : [])],
+    summerTiresKm: 40000, tireSet: 52000, winterSet: 68000,
+    oneOff: [[3, 'tax', 11900, 'Registration & plates'], [5, 'accessories', 98000, 'Wallbox incl. installation'], [30, 'accessories', 6900, 'Floor mats']],
+  },
+};
 
-  let odo1 = 8500;
-  const start1 = new Date(); start1.setMonth(start1.getMonth() - 13); start1.setDate(1);
-
-  for (let m = 0; m < 14; m++) {
-    const base = new Date(start1); base.setMonth(base.getMonth() + m);
-    const sessions = m % 3 === 1 ? 3 : 2;
-    for (let s = 0; s < sessions; s++) {
-      const day = 3 + s * Math.floor(26 / sessions) + (s === 0 ? 0 : 1);
-      const d = new Date(base); d.setDate(Math.min(day, 28));
-      d.setHours(s === 0 ? 9 + Math.floor(Math.random() * 4) : 20, Math.floor(Math.random() * 59));
-      const isDC = s === 0;
-      const km = Math.floor(600 + Math.random() * 700);
-      odo1 += km;
-      const kwh = isDC
-        ? Math.floor((32 + Math.random() * 28) * 100)
-        : Math.floor((14 + Math.random() * 16) * 100);
-      const cpoId = isDC ? ['cpo1', 'cpo2', 'cpo3'][Math.floor(Math.random() * 3)] : 'cpo4';
-      const ppk = Math.max(30, cpoPrices[cpoId] + Math.floor((Math.random() - 0.5) * 12));
-      const total = Math.round(kwh * ppk / 100);
-      list.push({
-        id: `ch${uid++}`, date: d.toISOString(), car_id: 'car1', car_name: 'Model Y',
-        car_odometer: odo1, car_soc_after: 78 + Math.floor(Math.random() * 22),
-        kwh_charged: kwh, cpo_id: cpoId, cpo_name: cpoNames[cpoId],
-        price_total: total, charge_type: isDC ? 'DC' : 'AC',
-        note: isDC && Math.random() > 0.6 ? 'Long trip' : null,
-        owner_id: 'demo', price_per_kwh: ppk,
-      });
-    }
-  }
-
-  let odo2 = 3200;
-  const start2 = new Date(); start2.setMonth(start2.getMonth() - 7); start2.setDate(1);
-  for (let m = 0; m < 7; m++) {
-    const base = new Date(start2); base.setMonth(base.getMonth() + m);
-    for (let s = 0; s < 2; s++) {
-      const day = 2 + s * 14; const d = new Date(base); d.setDate(Math.min(day, 27));
-      d.setHours(s === 0 ? 11 : 19, Math.floor(Math.random() * 59));
-      const isDC = s === 0;
-      odo2 += Math.floor(500 + Math.random() * 600);
-      const kwh = isDC
-        ? Math.floor((38 + Math.random() * 32) * 100)
-        : Math.floor((18 + Math.random() * 18) * 100);
-      const cpoId = isDC ? ['cpo2', 'cpo3', 'cpo5'][Math.floor(Math.random() * 3)] : 'cpo3';
-      const ppk = Math.max(32, cpoPrices[cpoId] + Math.floor((Math.random() - 0.5) * 10));
-      const total = Math.round(kwh * ppk / 100);
-      list.push({
-        id: `ch${uid++}`, date: d.toISOString(), car_id: 'car2', car_name: 'ID.4 Pro',
-        car_odometer: odo2, car_soc_after: 72 + Math.floor(Math.random() * 28),
-        kwh_charged: kwh, cpo_id: cpoId, cpo_name: cpoNames[cpoId],
-        price_total: total, charge_type: isDC ? 'DC' : 'AC', note: null,
-        owner_id: 'demo', price_per_kwh: ppk,
-      });
-    }
-  }
-
-  // Retired car: charges from purchase until shortly before the sale date
-  const car3 = MOCK_CARS.find((c) => c.id === 'car3');
-  let odo3 = 0;
-  const end3 = new Date(car3.sale_date + 'T12:00:00');
-  const cursor = new Date(car3.purchase_date + 'T12:00:00'); cursor.setDate(cursor.getDate() + 6);
-  for (let n = 0; cursor <= end3; n++) {
-    const d = new Date(cursor); d.setHours(18, rnd(0, 59));
-    odo3 += rnd(350, 700);
-    const isDC = n % 5 === 4;
-    const kwh = isDC ? rnd(2200, 3800) : rnd(1500, 3200);
-    const cpoId = isDC ? 'cpo3' : ['cpo4', 'cpo5'][rnd(0, 2)];
-    const ppk = Math.max(30, cpoPrices[cpoId] + rnd(-5, 6));
-    list.push({
-      id: `ch${uid++}`, date: d.toISOString(), car_id: 'car3', car_name: 'Zoe',
-      car_odometer: odo3, car_soc_after: 80 + rnd(0, 20),
-      kwh_charged: kwh, cpo_id: cpoId, cpo_name: cpoNames[cpoId],
-      price_total: Math.round(kwh * ppk / 100), charge_type: isDC ? 'DC' : 'AC', note: null,
-      owner_id: 'demo', price_per_kwh: ppk,
-    });
-    cursor.setDate(cursor.getDate() + rnd(9, 17));
-  }
-  car3.odometer = car3.sale_odometer = odo3 + rnd(20, 120);
-  // Like the backend, a car's odometer follows its newest charge
-  MOCK_CARS.find((c) => c.id === 'car1').odometer = odo1;
-  MOCK_CARS.find((c) => c.id === 'car2').odometer = odo2;
-
-  return list.sort((a, b) => new Date(b.date) - new Date(a.date));
+// Small seeded PRNG so the demo looks the same on every load
+function mulberry32(seed) {
+  return () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-function generateMockExpenses(cars) {
-  const list = [];
-  let uid = 1;
-  const add = (car, date, category, amount, note = null) => {
-    const end = car.sale_date ? new Date(car.sale_date + 'T23:59:59') : new Date();
-    date.setHours(rnd(8, 18), rnd(0, 59), 0, 0);
-    if (date > end) return;
-    list.push({ id: `ex${uid++}`, owner_id: 'demo', date: date.toISOString(), car_id: car.id, car_name: car.name, category, amount, note });
+// Day-by-day simulation: driving drains the battery (more in winter), charging refills it,
+// expenses follow the calendar and the odometer. Returns charges and expenses for one car.
+function simulateCar(car, p, ids) {
+  const rand = mulberry32(p.seed);
+  const rnd = (a, b) => Math.floor(a + rand() * (b - a));
+  const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+  const cpoById = Object.fromEntries(MOCK_CPOS.map((c) => [c.id, c]));
+  const charges = [], expenses = [];
+  const start = new Date(car.purchase_date + 'T12:00:00');
+  const end = car.sale_date ? new Date(car.sale_date + 'T12:00:00') : new Date();
+  let odo = car.purchase_odometer || 0;
+  let soc = 80;
+  let lastTireChange = odo;
+  // Used cars come with a set of winter tires
+  let hasWinterSet = (car.purchase_odometer || 0) > 0;
+  let lastHour = 0;
+
+  const at = (d, h) => { const x = new Date(d); x.setHours(h, rnd(0, 59), 0, 0); return x.toISOString(); };
+  const expense = (d, category, amount, note) => expenses.push({
+    id: `ex${ids.ex++}`, owner_id: 'demo', date: at(d, rnd(9, 18)), car_id: car.id, car_name: car.name, category, amount, note,
+  });
+  const charge = (d, hour, cpoId, target, type) => {
+    // Keep charges of one day in chronological order so the odometer never goes backwards
+    hour = Math.min(23, Math.max(hour, lastHour + 1));
+    const loss = type === 'AC' ? 1.1 : 1.05;
+    const kwh = Math.round(((target - soc) / 100) * car.battery_capacity * loss * 100);
+    if (kwh < 300) return;
+    const base = cpoById[cpoId].default_price;
+    const ppk = cpoId === 'cpo0' ? base : base + rnd(-3, 4);
+    soc = target;
+    lastHour = hour;
+    charges.push({
+      id: `ch${ids.ch++}`, date: at(d, hour), car_id: car.id, car_name: car.name,
+      car_odometer: odo, car_soc_after: target, kwh_charged: kwh, cpo_id: cpoId, cpo_name: cpoById[cpoId].name,
+      price_total: Math.round((kwh * ppk) / 100), charge_type: type, note: null, owner_id: 'demo', price_per_kwh: ppk,
+    });
   };
-  const at = (start, days) => { const d = new Date(start); d.setDate(d.getDate() + days); return d; };
-  for (const car of cars) {
-    const start = new Date(car.purchase_date + 'T12:00:00');
-    const end = car.sale_date ? new Date(car.sale_date + 'T12:00:00') : new Date();
-    const years = Math.ceil((end - start) / (365 * 864e5));
-    for (let y = 0; y < years; y++) {
-      const yStart = at(start, y * 365 + 2);
-      add(car, yStart, 'insurance', rnd(52000, 78000), 'Annual premium');
-      add(car, at(yStart, 3), 'tax', rnd(4000, 9500), 'Vehicle tax');
-      add(car, at(start, y * 365 + rnd(250, 340)), 'maintenance', rnd(9000, 32000), y % 2 ? 'Service' : 'Inspection');
-      for (let i = 0; i < rnd(4, 9); i++) add(car, at(start, y * 365 + rnd(10, 360)), 'tolls_parking', rnd(200, 2800), Math.random() > 0.5 ? 'Parking' : null);
-      for (let i = 0; i < 3; i++) add(car, at(start, y * 365 + rnd(10, 360)), 'cleaning', rnd(800, 2800), i === 0 ? 'Car wash' : null);
+
+  p.oneOff.forEach(([days, category, amount, note]) => {
+    const d = new Date(start); d.setDate(d.getDate() + days);
+    if (d <= end) expense(d, category, amount, note);
+  });
+
+  for (let d = new Date(start), day = 0; d <= end; d.setDate(d.getDate() + 1), day++) {
+    const doy = Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 864e5);
+    const winter = 1 + 0.24 * Math.cos((2 * Math.PI * (doy - 15)) / 365);
+    const kwhPerKm = (p.consumption * winter) / 100;
+    const weekday = d.getDay() % 6 !== 0;
+    const isTrip = day > 0 && rand() < 1 / p.tripEvery;
+    lastHour = 0;
+
+    // Calendar-based expenses
+    const ownedYear = Math.floor(day / 365);
+    if (day % 365 === 0) {
+      expense(d, 'insurance', p.insurance[0] - ownedYear * p.insurance[1] + rnd(-2000, 2000), 'Annual premium');
+      if (p.adac) expense(d, 'other', 9400, 'ADAC membership');
     }
-    for (let m = 20; m < years * 12; m += 24) add(car, at(start, m * 30 + rnd(0, 20)), 'tires', rnd(42000, 78000), 'Tire change');
-    add(car, at(start, 25), 'accessories', rnd(3000, 14000), 'Floor mats');
-    if (years >= 2) add(car, at(start, rnd(400, 600)), 'accessories', rnd(4000, 18000), 'Roof rack');
-    if (years >= 2) add(car, at(start, rnd(300, 500)), 'other', rnd(2000, 9000), 'Registration fee');
+    if (day % 365 === 200) p.maintenance(ownedYear).forEach(([note, amount]) => expense(d, 'maintenance', amount, note));
+    const m = d.getMonth(), dom = d.getDate();
+    if (m === 9 && dom === 20) {
+      if (!hasWinterSet) { expense(d, 'tires', p.winterSet, 'Winter tires on rims'); hasWinterSet = true; }
+      else expense(d, 'tires', rnd(4500, 6000), 'Tire swap (winter)');
+    }
+    if (m === 3 && dom === 8 && hasWinterSet) {
+      if (odo - lastTireChange > p.summerTiresKm) { expense(d, 'tires', p.tireSet, 'New summer tires incl. fitting'); lastTireChange = odo; }
+      else expense(d, 'tires', rnd(4500, 6000), 'Tire swap (summer)');
+    }
+    if (rand() < 1 / 28) expense(d, 'cleaning', pick([1290, 1490, 1690, 1990]), 'Car wash');
+    if (m === 4 && dom === 2) expense(d, 'cleaning', 8900, 'Interior cleaning');
+    if (rand() < (weekday ? 0.06 : 0.12)) expense(d, 'tolls_parking', rnd(150, 1200), 'Parking');
+
+    if (isTrip) {
+      // Road trip: fast-charge whenever the battery gets low, park at the destination
+      let remaining = rnd(p.trip[0], p.trip[1]);
+      while (remaining > 0) {
+        const range = Math.max(0, ((soc - 12) / 100) * car.battery_capacity / kwhPerKm);
+        const leg = Math.min(remaining, range);
+        odo += Math.round(leg); remaining -= leg;
+        soc -= (leg * kwhPerKm / car.battery_capacity) * 100;
+        if (remaining > 0) charge(d, rnd(10, 17), pick(p.dc), rnd(75, 86), 'DC');
+      }
+      if (rand() < 0.6) expense(d, 'tolls_parking', rnd(1500, 3200), 'Parking garage');
+      if (rand() < 0.15) expense(d, 'tolls_parking', 1290, 'Austria vignette (10 days)');
+    } else {
+      const km = weekday ? p.commute + rnd(-8, 15) : rnd(p.weekend[0], p.weekend[1]);
+      odo += km;
+      soc -= (km * kwhPerKm / car.battery_capacity) * 100;
+    }
+
+    // Everyday charging: at home overnight, or at a public charger when there is no wallbox
+    if (p.home && soc < 35 + rnd(0, 10)) charge(d, rnd(18, 22), 'cpo0', rand() < 0.2 ? 90 : 80, 'AC');
+    else if (!p.home && soc < 28) {
+      if (rand() < 0.3) charge(d, rnd(8, 19), pick(p.dc), 80, 'DC');
+      else charge(d, rnd(9, 19), pick(p.ac), 85, 'AC');
+    }
   }
-  return list.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return { charges, expenses, odometer: odo };
+}
+
+function generateMockData() {
+  const ids = { ch: 1, ex: 1 };
+  const charges = [], expenses = [];
+  const cars = JSON.parse(JSON.stringify(MOCK_CARS));
+  for (const car of cars) {
+    const sim = simulateCar(car, PROFILES[car.id], ids);
+    charges.push(...sim.charges); expenses.push(...sim.expenses);
+    // Like the backend, a car's odometer follows its newest charge
+    car.odometer = sim.charges.length ? sim.charges[sim.charges.length - 1].car_odometer : car.purchase_odometer;
+    if (car.sale_date) car.sale_odometer = sim.odometer;
+  }
+  const byDateDesc = (a, b) => new Date(b.date) - new Date(a.date);
+  return { cars, charges: charges.sort(byDateDesc), expenses: expenses.sort(byDateDesc) };
 }
 
 export function makeMockApi() {
-  let charges = generateMockCharges();
-  let cars = JSON.parse(JSON.stringify(MOCK_CARS));
+  const data = generateMockData();
+  let charges = data.charges;
+  let cars = data.cars;
   let cpos = JSON.parse(JSON.stringify(MOCK_CPOS));
-  let expenses = generateMockExpenses(cars);
+  let expenses = data.expenses;
   let apiTokens = [];
   let nextId = 200;
   const delay = () => new Promise((r) => setTimeout(r, 80));

@@ -1,12 +1,14 @@
-# Chargelogger
+# EVLogger
 
-A self-hosted tool for tracking EV charging sessions across multiple cars. Chargelogger records every charge — when, where, how much energy, and what it cost — and surfaces statistics to help you understand your charging habits over time.
+A self-hosted tool for tracking EV charging sessions and the full cost of owning your cars. EVLogger records every charge — when, where, how much energy, and what it cost — along with other car expenses, and surfaces statistics to help you understand your charging habits and total cost of ownership over time.
 
 ## Features
 
 - **Multi-car support** – manage charging history for several vehicles independently
 - **Charge Point Operator (CPO) management** – store charger networks with default per-kWh prices
 - **Rich charge records** – date, odometer, kWh charged, total cost, AC/DC type, notes
+- **Expenses** – insurance, tax, tires, tolls & parking, cleaning, maintenance, accessories, subscriptions and more
+- **Total cost of ownership** – purchase and sale price per car, running and all-in cost per 100 km; retire sold cars
 - **Statistics** – monthly, yearly, and all-time breakdowns with cost and efficiency metrics
 - **CSV import** – bulk-import charging history from spreadsheet exports
 - **Multi-user** – each user sees only their own data; the first registered user becomes admin

@@ -30,4 +30,4 @@ COLLECTION_SITE_SETTINGS = 'site_settings'
 API_TOKEN_PREFIX = 'clk_'
 
 ALLOWED_HOSTS = '*'
-PROJECT_NAME = 'chargelogger'
+PROJECT_NAME = 'EVLogger'

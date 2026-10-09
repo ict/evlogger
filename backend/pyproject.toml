@@ -1,5 +1,5 @@
 [project]
-name = "charge-logger"
+name = "evlogger"
 version = "0.1.0"
 description = ""
 authors = [{ name = "Demian", email = "ict1986@gmail.com" }]

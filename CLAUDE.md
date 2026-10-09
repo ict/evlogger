@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-Chargelogger is a self-hosted EV charge tracker split into two top-level apps:
+EVLogger is a self-hosted EV charge and cost-of-ownership tracker split into two top-level apps:
 
 - **`backend/`** — FastAPI + Motor (async MongoDB) REST API. Entry point is [backend/app/main.py](backend/app/main.py); routers under `app/routes/` are mounted at `/car`, `/cpo`, `/charge`, plus `/users/*`. JWT auth (python-jose + bcrypt) with first-registered-user-becomes-admin. The API also supports long-lived API tokens (LLATs) — see `app/models/users.py` and `app/operations/users.py`.
 - **`frontend/`** — React 18 SPA built with Vite. Single-file root [frontend/src/App.jsx](frontend/src/App.jsx) holds top-level state (auth, selected car, cached charges) and routes between four views in `src/views/`. All API calls go through `src/api.js`; `src/mockApi.js` powers the demo mode (login screen "Try demo" → no backend required).

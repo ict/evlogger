@@ -1,6 +1,6 @@
-# Charge Logger — Backend
+# EVLogger — Backend
 
-Async REST API built with **FastAPI** and **MongoDB**. Handles user authentication, car and CPO management, charge record storage, and CSV import.
+Async REST API built with **FastAPI** and **MongoDB**. Handles user authentication, car and CPO management, charge and expense storage, and CSV import.
 
 ## Features
 

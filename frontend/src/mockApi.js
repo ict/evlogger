@@ -189,7 +189,7 @@ export function makeMockApi() {
 
   return {
     async login() { return { access_token: 'demo', token_type: 'bearer' }; },
-    async getMe() { return { username: 'demo', full_name: 'Demo User', email: 'demo@chargelogger.app' }; },
+    async getMe() { return { username: 'demo', full_name: 'Demo User', email: 'demo@evlogger.app' }; },
     async getCars() { await delay(); return cars; },
     async createCar(d) { await delay(); const c = { ...d, id: nid(), owner_id: 'demo', retired: !!d.sale_date }; cars.push(c); return c; },
     async updateCar(id, d) {

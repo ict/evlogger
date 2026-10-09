@@ -1,6 +1,6 @@
-# Chargelogger Frontend
+# EVLogger Frontend
 
-React (Vite) single-page app for the Chargelogger API. Built as a static
+React (Vite) single-page app for the EVLogger API. Built as a static
 bundle and served by Caddy, which also reverse-proxies `/api/*` to the
 backend so the UI and API share one origin.
 

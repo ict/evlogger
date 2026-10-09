@@ -4,6 +4,7 @@ import { makeMockApi } from './mockApi.js';
 import LoginScreen from './auth/LoginScreen.jsx';
 import DashboardView from './views/DashboardView.jsx';
 import ChargesView from './views/ChargesView.jsx';
+import ExpensesView from './views/ExpensesView.jsx';
 import CposView from './views/CposView.jsx';
 import YearlyTrendsView from './views/YearlyTrendsView.jsx';
 import AdminView from './views/AdminView.jsx';
@@ -33,6 +34,8 @@ export default function App() {
   const [cposLoading, setCposLoading] = useState(false);
   const [charges, setCharges] = useState([]);
   const [chargesLoading, setChargesLoading] = useState(false);
+  const [expenses, setExpenses] = useState([]);
+  const [expensesLoading, setExpensesLoading] = useState(false);
   const [carDropdown, setCarDropdown] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -64,7 +67,7 @@ export default function App() {
     safeStorage.remove('cl_auth');
     setAuth(null);
     _mockApi.current = null;
-    setCars([]); setCharges([]); setCpos([]); setSelectedCarId('');
+    setCars([]); setCharges([]); setCpos([]); setExpenses([]); setSelectedCarId('');
   };
 
   const handleSetSelectedCarId = useCallback((id) => {
@@ -102,8 +105,17 @@ export default function App() {
       .finally(() => setChargesLoading(false));
   }, [apiClient]);
 
+  const loadExpenses = useCallback(() => {
+    if (!apiClient) return;
+    setExpensesLoading(true);
+    apiClient.getExpenses({ limit: 500 })
+      .then((d) => setExpenses(d || []))
+      .catch(() => {})
+      .finally(() => setExpensesLoading(false));
+  }, [apiClient]);
+
   useEffect(() => {
-    if (apiClient) { loadCars(); loadCpos(); loadCharges(); }
+    if (apiClient) { loadCars(); loadCpos(); loadCharges(); loadExpenses(); }
   }, [apiClient]);
 
   useEffect(() => {
@@ -125,6 +137,7 @@ export default function App() {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'charges', label: 'Charges' },
+    { id: 'expenses', label: 'Expenses' },
     { id: 'trends', label: 'Yearly Trends' },
     { id: 'cpos', label: 'CPOs' },
     ...(auth?.user?.is_admin ? [{ id: 'admin', label: 'Admin' }] : []),
@@ -238,9 +251,10 @@ export default function App() {
       )}
 
       <main className="main-content">
-        {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} tf={dashTf} setTf={handleSetDashTf} fromDate={dashFrom} setFromDate={handleSetDashFrom} toDate={dashTo} setToDate={handleSetDashTo} />}
+        {tab === 'dashboard' && <DashboardView api={apiClient} selectedCarId={selectedCarId} cars={cars} expenses={expenses} expensesLoading={expensesLoading} tf={dashTf} setTf={handleSetDashTf} fromDate={dashFrom} setFromDate={handleSetDashFrom} toDate={dashTo} setToDate={handleSetDashTo} />}
         {tab === 'charges' && <ChargesView api={apiClient} charges={charges} loading={chargesLoading} reload={loadCharges} cars={cars} cpos={cpos} selectedCarId={selectedCarId} toast={toast} />}
-        {tab === 'trends' && <YearlyTrendsView charges={charges} loading={chargesLoading} selectedCarId={selectedCarId} cars={cars} />}
+        {tab === 'expenses' && <ExpensesView api={apiClient} expenses={expenses} loading={expensesLoading} reload={loadExpenses} cars={cars} selectedCarId={selectedCarId} toast={toast} />}
+        {tab === 'trends' && <YearlyTrendsView expenses={expenses} expensesLoading={expensesLoading} charges={charges} loading={chargesLoading} selectedCarId={selectedCarId} cars={cars} />}
         {tab === 'cpos' && <CposView api={apiClient} cpos={cpos} loading={cposLoading} reload={loadCpos} toast={toast} />}
         {tab === 'admin' && auth?.user?.is_admin && <AdminView api={apiClient} toast={toast} />}
       </main>

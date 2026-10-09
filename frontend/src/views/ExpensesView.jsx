@@ -48,8 +48,9 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
 
   const breakdown = useMemo(() => {
     const sums = {};
-    for (const e of carExpenses.filter((x) => !isIncome(x))) sums[catKey(e)] = (sums[catKey(e)] || 0) + (e.amount || 0);
-    return Object.entries(sums).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    // net per category, so the chips add up to the total
+    for (const e of carExpenses) sums[catKey(e)] = (sums[catKey(e)] || 0) + signed(e);
+    return Object.entries(sums).filter(([, v]) => v !== 0).sort((a, b) => b[1] - a[1]);
   }, [carExpenses]);
 
   const years = useMemo(() => {
@@ -126,7 +127,7 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
                 {breakdown.map(([k, v]) => (
                   <span key={k} title={EXPENSE_CATEGORY_MAP[k].label}>
                     <CategoryIcon category={k} size={14} style={{ color: EXPENSE_CATEGORY_MAP[k].color }} />
-                    {fmtEur(v)} €
+                    <span style={netStyle(v)}>{fmtNet(v)}</span>
                   </span>
                 ))}
               </div>

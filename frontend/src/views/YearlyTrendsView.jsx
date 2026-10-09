@@ -26,7 +26,7 @@ function YearRow({ data, showExpenses }) {
     { label: 'Total Distance',   value: totalDist > 0 ? totalDist.toLocaleString('de-DE') + ' km' : '—', delta: prev && totalDist > 0 ? <Delta val={totalDist} prev={prev.totalDist} lowerIsBetter={false} unit="km" decimals={0} /> : null },
     { label: showExpenses ? 'Charging' : 'Total Price', value: totalPrice > 0 ? totalPrice.toFixed(2) + ' €' : '—', delta: d(totalPrice, prev?.totalPrice, totalPrice > 0) },
     ...(showExpenses ? [
-      { label: 'Other costs', value: otherCosts !== 0 ? otherCosts.toFixed(2) + ' €' : '—', delta: d(otherCosts, prev?.otherCosts, otherCosts !== 0) },
+      { label: 'Expenses', value: otherCosts !== 0 ? otherCosts.toFixed(2) + ' €' : '—', delta: d(otherCosts, prev?.otherCosts, otherCosts !== 0) },
       { label: 'Total', value: totalCost > 0 ? totalCost.toFixed(2) + ' €' : '—', delta: d(totalCost, prev?.totalCost, totalCost > 0) },
     ] : []),
     { label: 'Price per 100 km', value: pricePer100km > 0 ? pricePer100km.toFixed(2) + ' €' : '—',       delta: d(pricePer100km, prev?.pricePer100km, pricePer100km > 0) },
@@ -156,7 +156,7 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
           </div>
           {showExpenses && (
             <div className="chart-card">
-              <div className="chart-card-header"><div className="chart-card-title">Running cost per 100 km <span className="chart-card-unit">€ · charging + other</span></div></div>
+              <div className="chart-card-header"><div className="chart-card-title">Running cost per 100 km <span className="chart-card-unit">€ · charging + expenses</span></div></div>
               <div className="chart-canvas-wrap">
                 <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.runningPer100km.toFixed(2)))} unit="€/100 km" color="#0ea5e9" showValues valueDecimals={2} valueUnit="€" />
               </div>

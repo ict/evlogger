@@ -21,11 +21,12 @@ export function expensesByCategory(expenses) {
   return out;
 }
 
-// [{ key, label, amount }] sorted by amount desc, zero entries removed (cents)
+// [{ key, label, amount }] net of income per category, sorted by amount desc, zero entries removed (cents)
 export function categoryBreakdown(expenses) {
-  const by = expensesByCategory(expenses);
+  const by = {};
+  expenses.forEach((e) => { const k = catKey(e.category); by[k] = (by[k] || 0) + (isIncome(e) ? -1 : 1) * (e.amount || 0); });
   return Object.entries(by)
-    .filter(([, amount]) => amount > 0)
+    .filter(([, amount]) => amount !== 0)
     .map(([key, amount]) => ({ key, label: EXPENSE_CATEGORY_MAP[key].label, amount }))
     .sort((a, b) => b.amount - a.amount);
 }

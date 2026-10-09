@@ -16,8 +16,7 @@ function TcoCard({ tco, car, incomplete }) {
   const rows = [
     ...(hasPurchase ? [[retired ? 'Depreciation (purchase − sale)' : 'Depreciation (estimated)', capital]] : []),
     ['Charging', charging],
-    ['Other costs', expenses],
-    ...(income > 0 ? [['Income (sales, refunds)', -income]] : []),
+    ['Expenses', expenses - income],
   ];
   const total = hasPurchase ? allIn : running;
   return (
@@ -27,7 +26,7 @@ function TcoCard({ tco, car, incomplete }) {
       </div>
       <div className="tco-grid">
         <div>
-          <div className="tco-label">Running cost <span>charging + other − income</span></div>
+          <div className="tco-label">Running cost <span>charging + expenses</span></div>
           <div className="stat-value" style={{ color: 'var(--accent)' }}>{perKm(runningPerKm)}<span className="stat-unit">€ / 100 km</span></div>
           <div className="stat-sub">{sub(runningPerKm)}</div>
         </div>
@@ -82,15 +81,15 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
 
   const car = cars.find((c) => c.id === selectedCarId);
 
-  // Other costs within the selected range (client-side, from App-level expenses)
+  // Expenses within the selected range (client-side, from App-level expenses)
   const rangeExpenses = useMemo(
     () => expensesInRange(expenses, selectedCarId, getTimeframeRange(tf, fromDate, toDate)),
     [expenses, selectedCarId, tf, fromDate, toDate],
   );
-  // Net of income (sold tires, refunds); category chips show costs only
+  // Net of income (sold tires, refunds)
   const otherCosts = useMemo(() => {
     const income = sumIncome(rangeExpenses);
-    return { total: sumExpenses(rangeExpenses) - income, income, count: rangeExpenses.filter((e) => !isIncome(e)).length, byCategory: categoryBreakdown(rangeExpenses) };
+    return { total: sumExpenses(rangeExpenses) - income, count: rangeExpenses.filter((e) => !isIncome(e)).length, byCategory: categoryBreakdown(rangeExpenses) };
   }, [rangeExpenses]);
   const tco = useMemo(() => (car ? computeTco(car, charges, expenses) : null), [car, charges, expenses]);
   const stats = useMemo(() => {
@@ -261,12 +260,9 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
               {stats.costPer100km > 0 && <div style={{ marginTop: 6, fontSize: 12.5, color: 'var(--accent)', fontWeight: 600 }}>{stats.costPer100km.toFixed(2)} €/100km</div>}
             </div>
             <div className="stat-card">
-              <div className="stat-label">Other costs</div>
+              <div className="stat-label">Expenses</div>
               <div className="stat-value">{fmtMoney(otherCosts.total)}<span className="stat-unit">€</span></div>
-              <div className="stat-sub">
-                {otherCosts.count} expense{otherCosts.count !== 1 ? 's' : ''} in period
-                {otherCosts.income > 0 && <> · <span style={{ color: 'var(--green)' }}>−{fmtMoney(otherCosts.income)} € income</span></>}
-              </div>
+              <div className="stat-sub">{otherCosts.count} expense{otherCosts.count !== 1 ? 's' : ''} in period</div>
               {otherCosts.byCategory.length > 0 && (
                 <div className="cost-cats">
                   {otherCosts.byCategory.map((c) => (

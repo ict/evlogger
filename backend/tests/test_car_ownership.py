@@ -88,6 +88,35 @@ class TestPurchaseAndSaleFields:
         assert response.json()['purchase_price'] == PURCHASE['purchase_price']
 
 
+class TestValueEstimate:
+    def test_default_to_null(self, test_app, headers):
+        car = create_car(test_app, headers)
+        assert car['depreciation_rate'] is None
+        assert car['estimated_value'] is None
+
+    def test_round_trip(self, test_app, headers, car):
+        put_car(test_app, headers, car, depreciation_rate=25, estimated_value=2810000)
+        loaded = test_app.get(f'/car/{car["id"]}', headers=headers).json()
+        assert (loaded['depreciation_rate'], loaded['estimated_value']) == (25, 2810000)
+
+    @pytest.mark.parametrize('field', ['depreciation_rate', 'estimated_value'])
+    def test_can_be_cleared(self, test_app, headers, car, field):
+        put_car(test_app, headers, car, depreciation_rate=25, estimated_value=2810000)
+        response = put_car(test_app, headers, car, **{field: None})
+        assert response.json()[field] is None
+
+    @pytest.mark.parametrize('rate', [0, 100])
+    def test_rate_bounds_are_allowed(self, test_app, headers, car, rate):
+        assert put_car(test_app, headers, car, depreciation_rate=rate).status_code == status.HTTP_200_OK
+
+    @pytest.mark.parametrize(
+        ('field', 'value'), [('depreciation_rate', -1), ('depreciation_rate', 101), ('estimated_value', -1)]
+    )
+    def test_out_of_range_is_422(self, test_app, headers, car, field, value):
+        response = put_car(test_app, headers, car, **{field: value})
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
 class TestRetiring:
     def test_retired_is_computed_from_sale_date(self, test_app, headers, car):
         response = put_car(test_app, headers, car, **SALE)

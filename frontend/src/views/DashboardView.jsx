@@ -10,11 +10,11 @@ import { computeTco, expensesInRange, sumExpenses, categoryBreakdown } from '../
 const CPO_PALETTE = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#a855f7'];
 
 function TcoCard({ tco, car, incomplete }) {
-  const { retired, hasPurchase, charging, expenses, byCategory, capital, km, running, allIn, runningPerKm, allInPerKm, months, depreciationPerYear } = tco;
+  const { retired, hasPurchase, charging, expenses, byCategory, capital, estimate, km, running, allIn, runningPerKm, allInPerKm, months, depreciationPerYear } = tco;
   const perKm = (v) => (v == null ? '—' : fmtPer100km(v));
   const sub = (v) => (v == null ? '' : `${fmtPerKm(v)} €/km`);
   const rows = [
-    ...(hasPurchase ? [[retired ? 'Depreciation (purchase − sale)' : 'Purchase price', capital]] : []),
+    ...(hasPurchase ? [[retired ? 'Depreciation (purchase − sale)' : 'Depreciation (estimated)', capital]] : []),
     ['Charging', charging],
     ['Other costs', expenses],
   ];
@@ -31,7 +31,7 @@ function TcoCard({ tco, car, incomplete }) {
           <div className="stat-sub">{sub(runningPerKm)}</div>
         </div>
         <div>
-          <div className="tco-label">All-in cost <span>{retired ? 'final' : 'to date'}</span></div>
+          <div className="tco-label">All-in cost <span>{retired ? 'final' : 'estimated'}</span></div>
           {hasPurchase ? (
             <>
               <div className="stat-value">{perKm(allInPerKm)}<span className="stat-unit">€ / 100 km</span></div>
@@ -46,6 +46,11 @@ function TcoCard({ tco, car, incomplete }) {
             <div key={label} className="tco-row"><span>{label}</span><span>{fmtMoney(v)} €</span></div>
           ))}
           <div className="tco-row tco-total"><span>Total</span><span>{fmtMoney(total)} €</span></div>
+          {estimate && (
+            <div className="stat-sub" style={{ fontSize: 11.5 }}>
+              Purchase {fmtMoney0(car.purchase_price)} € · est. value {fmtMoney0(estimate.value)} € ({estimate.manual ? 'manual estimate' : `−${estimate.rate} % / year`})
+            </div>
+          )}
         </div>
       </div>
       {byCategory.length > 0 && (

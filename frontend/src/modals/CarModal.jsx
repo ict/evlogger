@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Modal from '../components/Modal.jsx';
-import { fmtEur, fmtDay, parseMoney } from '../format.js';
+import { fmtEur, fmtMoney0, fmtDay, parseMoney } from '../format.js';
+import { DEFAULT_DEPRECIATION_RATE, estimateValue } from '../costs.js';
 
 export default function CarModal({ open, onClose, onSaved, car, api, toast }) {
-  const [f, setF] = useState({ name: '', make: '', model: '', color: '#3b82f6', odometer: '', battery_capacity: '', purchase_price: '', purchase_date: '', purchase_odometer: '' });
+  const [f, setF] = useState({ name: '', make: '', model: '', color: '#3b82f6', odometer: '', battery_capacity: '', purchase_price: '', purchase_date: '', purchase_odometer: '', depreciation_rate: '', estimated_value: '' });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -20,16 +21,29 @@ export default function CarModal({ open, onClose, onSaved, car, api, toast }) {
         purchase_price: car?.purchase_price != null ? fmtEur(car.purchase_price) : '',
         purchase_date: car?.purchase_date || '',
         purchase_odometer: car?.purchase_odometer != null ? car.purchase_odometer.toString() : '',
+        depreciation_rate: car?.depreciation_rate != null ? car.depreciation_rate.toString() : '',
+        estimated_value: car?.estimated_value != null ? fmtEur(car.estimated_value) : '',
       });
       setErr('');
     }
   }, [open, car]);
+
+  // Live preview of the formula estimate for the values currently in the form
+  const previewPrice = f.purchase_price.trim() ? parseMoney(f.purchase_price) : null;
+  const preview = previewPrice != null && f.purchase_date
+    ? estimateValue({ purchase_price: previewPrice, purchase_date: f.purchase_date, depreciation_rate: f.depreciation_rate.trim() !== '' ? Number(f.depreciation_rate) : null })
+    : null;
+  const formulaHint = preview ? ` Today ≈ ${fmtMoney0(preview.value)} €.` : '';
 
   const submit = async () => {
     if (!f.name.trim()) { setErr('Name is required.'); return; }
     if (!f.battery_capacity) { setErr('Battery capacity is required.'); return; }
     const purchasePrice = f.purchase_price.trim() ? parseMoney(f.purchase_price) : null;
     if (f.purchase_price.trim() && (purchasePrice == null || purchasePrice < 0)) { setErr('Purchase price is invalid.'); return; }
+    const rate = f.depreciation_rate.trim() !== '' ? Number(f.depreciation_rate) : null;
+    if (rate != null && !(Number.isInteger(rate) && rate >= 0 && rate <= 100)) { setErr('Depreciation must be a whole number between 0 and 100.'); return; }
+    const estValue = f.estimated_value.trim() ? parseMoney(f.estimated_value) : null;
+    if (f.estimated_value.trim() && (estValue == null || estValue < 0)) { setErr('Estimated value is invalid.'); return; }
     setSaving(true); setErr('');
     try {
       const payload = {
@@ -42,6 +56,8 @@ export default function CarModal({ open, onClose, onSaved, car, api, toast }) {
         purchase_price: purchasePrice,
         purchase_date: f.purchase_date || null,
         purchase_odometer: f.purchase_odometer !== '' ? parseInt(f.purchase_odometer) : null,
+        depreciation_rate: rate,
+        estimated_value: estValue,
       };
       // Retirement is edited elsewhere; the backend replaces fields, so pass existing values through
       if (car) {
@@ -117,6 +133,20 @@ export default function CarModal({ open, onClose, onSaved, car, api, toast }) {
         <input type="number" className="form-input" placeholder="0" min="0" value={f.purchase_odometer} onChange={(e) => set('purchase_odometer', e.target.value)} />
         <p className="form-hint">For used cars.</p>
       </div>
+      {!car?.retired && (
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Depreciation (% / year) <span style={{ fontWeight: 400, color: 'var(--text-light)' }}>optional</span></label>
+            <input type="number" className="form-input" placeholder={String(DEFAULT_DEPRECIATION_RATE)} min="0" max="100" value={f.depreciation_rate} onChange={(e) => set('depreciation_rate', e.target.value)} />
+            <p className="form-hint">Default {DEFAULT_DEPRECIATION_RATE} %.{formulaHint}</p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Estimated value (€) <span style={{ fontWeight: 400, color: 'var(--text-light)' }}>optional</span></label>
+            <input type="text" inputMode="decimal" className="form-input" placeholder="from formula" value={f.estimated_value} onChange={(e) => set('estimated_value', e.target.value)} />
+            <p className="form-hint">Overrides the formula, e.g. from a real offer.</p>
+          </div>
+        </div>
+      )}
       {car?.retired && (
         <div className="form-group">
           <label className="form-label">Sold</label>

@@ -12,7 +12,7 @@ const MOCK_CARS = [
   { id: 'car1', name: 'Model Y', make: 'Tesla', model: 'Model Y LR', color: '#dc2626', odometer: 0, battery_capacity: 75, owner_id: 'demo',
     purchase_price: 4590000, purchase_date: ymd(monthsAgo(26, 12)), purchase_odometer: 12400, sale_price: null, sale_date: null, sale_odometer: null, retired: false },
   { id: 'car2', name: 'ID.4 Pro', make: 'Volkswagen', model: 'ID.4 Pro', color: '#2563eb', odometer: 0, battery_capacity: 77, owner_id: 'demo',
-    purchase_price: 3790000, purchase_date: ymd(monthsAgo(8, 3)), purchase_odometer: 9800, sale_price: null, sale_date: null, sale_odometer: null, retired: false },
+    purchase_price: 3790000, purchase_date: ymd(monthsAgo(8, 3)), purchase_odometer: 9800, estimated_value: 3350000, sale_price: null, sale_date: null, sale_odometer: null, retired: false },
   { id: 'car3', name: 'Zoe', make: 'Renault', model: 'Zoe R135', color: '#16a34a', odometer: 0, battery_capacity: 52, owner_id: 'demo',
     purchase_price: 3290000, purchase_date: ymd(monthsAgo(52, 5)), purchase_odometer: 0, sale_price: 1390000, sale_date: ymd(monthsAgo(16, 20)), sale_odometer: null, retired: true },
 ];

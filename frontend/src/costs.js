@@ -65,6 +65,18 @@ export function ownershipMonths(car, now = new Date()) {
   return Math.max(0, m);
 }
 
+export const DEFAULT_DEPRECIATION_RATE = 20;
+
+// Estimated current value of an active car in cents: the manual estimate if set, otherwise
+// purchase price × (1 − rate)^years owned (declining balance). null without a purchase price.
+export function estimateValue(car, now = new Date()) {
+  if (car?.purchase_price == null) return null;
+  if (car.estimated_value != null) return { value: car.estimated_value, manual: true, rate: null };
+  const rate = car.depreciation_rate ?? DEFAULT_DEPRECIATION_RATE;
+  const years = car.purchase_date ? Math.max(0, (now - new Date(car.purchase_date + 'T00:00:00')) / (365.25 * 864e5)) : 0;
+  return { value: Math.round(car.purchase_price * (1 - rate / 100) ** years), manual: false, rate };
+}
+
 // Lifetime total cost of ownership for one car. Money in cents, perKm in €/km.
 export function computeTco(car, charges, expenses, now = new Date()) {
   const cs = forCar(charges, car.id);
@@ -73,8 +85,9 @@ export function computeTco(car, charges, expenses, now = new Date()) {
   const charging = sumCharging(cs);
   const exp = sumExpenses(es);
   const hasPurchase = car.purchase_price != null;
-  // active: purchase price counted in full; retired: purchase − sale
-  const capital = hasPurchase ? car.purchase_price - (retired ? (car.sale_price ?? 0) : 0) : null;
+  // Depreciation: retired = purchase − sale; active = purchase − estimated current value
+  const estimate = !retired ? estimateValue(car, now) : null;
+  const capital = hasPurchase ? car.purchase_price - (retired ? (car.sale_price ?? 0) : estimate.value) : null;
 
   const maxCharge = cs.reduce((m, c) => Math.max(m, c.car_odometer || 0), 0);
   const endOdo = retired ? (car.sale_odometer || maxCharge) : Math.max(car.odometer || 0, maxCharge);
@@ -84,11 +97,11 @@ export function computeTco(car, charges, expenses, now = new Date()) {
   const months = ownershipMonths(car, now);
   return {
     retired, hasPurchase, charging, expenses: exp, byCategory: categoryBreakdown(es),
-    capital, km, running,
+    capital, estimate, km, running,
     allIn: hasPurchase ? running + capital : null,
     runningPerKm: km > 0 ? running / 100 / km : null,
     allInPerKm: hasPurchase && km > 0 ? (running + capital) / 100 / km : null,
     months,
-    depreciationPerYear: retired && hasPurchase && months > 0 ? capital / (months / 12) : null,
+    depreciationPerYear: hasPurchase && months > 0 ? capital / (months / 12) : null,
   };
 }

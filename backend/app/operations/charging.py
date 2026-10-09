@@ -7,13 +7,13 @@ from typing import BinaryIO
 import bson
 import chardet
 import dateparser
-from loguru import logger
 from pydantic import ValidationError
 
 import app.core
 from app.core.config import COLLECTION_CARS, COLLECTION_CHARGES, COLLECTION_CPOS
 from app.core.db import AsyncIOMotorClient
 from app.models.charging import CPO, CarInDb, ChargeInDb, ChargeSubmission
+from app.operations.cars import get_owned_car
 from app.operations.crud_base import CPOCrud, CRUDBase, get_collection
 from app.util.timeparse import timeparse
 
@@ -24,18 +24,8 @@ async def _check_plausible(
     """
     Check the "foreign keys" of the entity and fills optional (denormalized) fields
     """
-    try:
-        car_id = bson.ObjectId(item.car_id)
-    except TypeError:
-        msg = f"car_id '{item.car_id}' invalid"
-        raise ValueError(msg) from None
-    car = await get_collection(db, COLLECTION_CARS).find_one({'_id': car_id})
-    if not car:
-        msg = f"car_id '{item.car_id}' is invalid"
-        raise ValueError(msg) from None
-    if car.get('owner_id', None) != owner_id:
-        msg = f"car_id '{item.car_id}' is invalid"
-        raise ValueError(msg) from None
+    car = await get_owned_car(db, item.car_id, owner_id, entry_date=item.date)
+    car_id = car['_id']
     item.car_name = car.get('name', '')
 
     try:
@@ -201,7 +191,7 @@ class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
                 logs.append(f'Line {entry_no}: invalid kwh_charged value: {charged_str}')
                 errors = True
                 continue
-            if charged < 100:  # noqa: SIM108
+            if charged < 100:
                 # Assume number is in kWh with decimal places
                 charged = int(round(charged * 100, 2))
             else:
@@ -223,7 +213,7 @@ class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
                     logs.append(f'Line {entry_no}: invalid price_total value: {price_str}')
                     errors = True
                     continue
-                if price < 100:  # noqa: SIM108
+                if price < 100:
                     # Assume number is not yet in cents
                     price = int(round(price * 100, 2))
                 else:

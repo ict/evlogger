@@ -14,8 +14,8 @@ from app.core.db import AsyncIOMotorClient, get_database
 from app.models.charging import CarInDb, ChargeInDb, ChargeSubmission
 from app.models.helpers import SimpleActionResult
 from app.models.users import UserInDb
+from app.operations.cars import CarCRUD
 from app.operations.charging import ChargeCrudOp
-from app.operations.crud_base import CarCRUD
 from app.util.auth import get_current_active_user
 
 router = APIRouter()

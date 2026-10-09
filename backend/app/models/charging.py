@@ -14,11 +14,21 @@ class Car(BaseModel):
     color: Color = 'black'
     odometer: int = 0
     battery_capacity: int = Field(..., description='Battery capacity in kWh')
+    purchase_price: int | None = Field(default=None, description='Purchase price in 1/100s of currency (e.g. cents)')
+    purchase_date: datetime.date | None = None
+    purchase_odometer: int | None = Field(default=None, description='Odometer in km at purchase (used cars)')
+    sale_price: int | None = Field(default=None, description='Sale price in 1/100s of currency (e.g. cents)')
+    sale_date: datetime.date | None = Field(default=None, description='Date the car was sold; marks it as retired')
+    sale_odometer: int | None = Field(default=None, description='Odometer in km at sale')
+
+    @computed_field
+    @property
+    def retired(self) -> bool:
+        return self.sale_date is not None
 
 
 class CarInDb(Car, DbIdMixin):
     owner_id: str
-    pass
 
 
 class CPO(BaseModel):
@@ -28,7 +38,6 @@ class CPO(BaseModel):
 
 class CPOInDb(CPO, DbIdMixin):
     owner_id: str
-    pass
 
 
 class ChargeTypeEnum(str, Enum):
@@ -59,7 +68,6 @@ class Charge(BaseModel):
 
 class ChargeInDb(Charge, DbIdMixin):
     owner_id: str
-    pass
 
 
 class ChargeSubmission(Charge):

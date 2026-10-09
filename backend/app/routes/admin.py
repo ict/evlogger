@@ -17,8 +17,9 @@ from app.core.db import AsyncIOMotorClient, get_database
 from app.models.charging import CarInDb, ChargeInDb, CPOInDb
 from app.models.site_settings import SiteSettings
 from app.models.users import User
+from app.operations.cars import CarCRUD
 from app.operations.charging import ChargeCrudOp
-from app.operations.crud_base import CarCRUD, CPOCrud, get_collection
+from app.operations.crud_base import CPOCrud, get_collection
 from app.operations.site_settings import get_site_settings, update_site_settings
 from app.operations.users import UserCrudOp
 from app.util.auth import get_current_admin_user

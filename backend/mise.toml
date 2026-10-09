@@ -19,6 +19,14 @@ run = "python app.py"
 description = "Run tests"
 run = "pytest tests/"
 
+[tasks.format]
+description = "Format and fix linting"
+run = "ruff format . && ruff check --fix ."
+
+[tasks.lint]
+description = "Check linting only"
+run = "ruff check ."
+
 [tasks.info]
 description = "Print project information"
 run = '''

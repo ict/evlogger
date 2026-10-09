@@ -3,11 +3,12 @@ from typing import Generic, TypeVar
 
 import bson
 from bson.codec_options import CodecOptions, TypeCodec, TypeRegistry
+from pydantic import BaseModel
 
 import app.core
 from app.core import config
 from app.core.db import AsyncIOMotorClient
-from app.models.charging import CPO, Car, CarInDb, CPOInDb
+from app.models.charging import CPO, CarInDb, CPOInDb
 
 InCls = TypeVar('InCls')
 DbCls = TypeVar('DbCls')
@@ -30,12 +31,19 @@ class DecimalCodec(TypeCodec):
 
 def get_collection(db: AsyncIOMotorClient, collection_name: str):
     def fallback_encoder(value):
+        # BSON has no date-only type: datetime.date is stored as an ISO string (YYYY-MM-DD),
+        # which pydantic parses back into a date when loading
         return str(value)
 
     decimal_codec = DecimalCodec()
     type_registry = TypeRegistry([decimal_codec], fallback_encoder=fallback_encoder)
     codec_options = CodecOptions(type_registry=type_registry, tz_aware=True)
     return db[config.DATABASE_NAME].get_collection(collection_name, codec_options=codec_options)
+
+
+def dump_for_db(item: BaseModel) -> dict:
+    """Dump a model for storage, leaving out computed fields (they are derived on read)"""
+    return item.model_dump(exclude=set(type(item).model_computed_fields))
 
 
 class CRUDBase(Generic[InCls, DbCls]):
@@ -84,7 +92,7 @@ class CRUDBase(Generic[InCls, DbCls]):
         return result
 
     async def create(self, db: AsyncIOMotorClient, new_item: InCls, owner_id: str | None = None) -> DbCls:
-        doc = new_item.model_dump()
+        doc = dump_for_db(new_item)
         if owner_id:
             doc['owner_id'] = owner_id
         collection = get_collection(db, self.collection)
@@ -103,15 +111,15 @@ class CRUDBase(Generic[InCls, DbCls]):
     async def update_by_id(
         self, db: AsyncIOMotorClient, by_id: str, new_item: InCls, owner_id: str | None = None
     ) -> DbCls | None:
-        update_data = new_item.model_dump(exclude_defaults=True, exclude_unset=True)
+        # Only touch fields the client actually sent; an explicit null clears the field
+        update_data = new_item.model_dump(exclude_unset=True, exclude=set(type(new_item).model_computed_fields))
         old_item = await self.get_by_id(db, by_id)
         if not old_item or (owner_id and old_item.owner_id != owner_id):
             return None
-        item_data = old_item.model_dump()
+        item_data = dump_for_db(old_item)
         item_data.update(update_data)
         await get_collection(db, self.collection).update_one({'_id': bson.ObjectId(by_id)}, {'$set': item_data})
         return await self.get_by_id(db, by_id)
 
 
-CarCRUD = CRUDBase[Car, CarInDb](app.core.config.COLLECTION_CARS, Car, CarInDb)
 CPOCrud = CRUDBase[CPO, CPOInDb](app.core.config.COLLECTION_CPOS, CPO, CPOInDb)

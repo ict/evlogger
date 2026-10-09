@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
-from starlette.status import HTTP_204_NO_CONTENT, HTTP_201_CREATED
+from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 
 from app.core.db import AsyncIOMotorClient, get_database
-from app.models.charging import CarInDb, Car
+from app.models.charging import Car, CarInDb
 from app.models.users import UserInDb
-from app.operations.crud_base import CarCRUD
+from app.operations.cars import CarCRUD
 from app.util.auth import get_current_active_user
 
 router = APIRouter()
@@ -24,7 +24,10 @@ async def list_cars(
 
 @router.post('/', status_code=HTTP_201_CREATED)
 async def create_car(car: Car, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends) -> CarInDb:
-    return await CarCRUD.create(db, car, str(user.id))
+    try:
+        return await CarCRUD.create(db, car, str(user.id))
+    except ValueError as err:
+        raise HTTPException(HTTP_400_BAD_REQUEST, str(err)) from None
 
 
 @router.get('/{id}')
@@ -40,14 +43,16 @@ async def delete_car_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: Use
     success = await CarCRUD.delete_by_id(db, id, str(user.id))
     if not success:
         raise HTTPException(404, 'Not found')
-    return None
 
 
 @router.put('/{id}')
 async def update_car_by_id(
     id: str, car: Car, db: AsyncIOMotorClient = DBDepend, user: UserInDb = UserDepends
 ) -> CarInDb:
-    new_car = await CarCRUD.update_by_id(db, id, car, user.id)
+    try:
+        new_car = await CarCRUD.update_by_id(db, id, car, user.id)
+    except ValueError as err:
+        raise HTTPException(HTTP_400_BAD_REQUEST, str(err)) from None
     if not new_car:
         raise HTTPException(404, 'Not found')
     return new_car

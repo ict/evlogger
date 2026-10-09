@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../components/Modal.jsx';
-import { fmtEur, fmtDateTimeInput } from '../format.js';
+import { fmtEur, fmtDateTimeInput, fmtDay } from '../format.js';
 
 export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos, charges, api, toast, preselectedCarId }) {
   const sortedCpos = (() => {
@@ -60,6 +60,8 @@ export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos
 
   const submit = async () => {
     if (!f.kwh || isNaN(parseFloat(f.kwh))) { setErr('kWh is required.'); return; }
+    const chosenCar = cars.find((c) => c.id === f.car_id);
+    if (chosenCar?.sale_date && f.date.slice(0, 10) > chosenCar.sale_date) { setErr(`Car was retired on ${fmtDay(chosenCar.sale_date)}.`); return; }
     setSaving(true); setErr('');
     try {
       const kwh_charged = Math.round(parseFloat(f.kwh) * 100);

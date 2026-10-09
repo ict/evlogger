@@ -1,17 +1,10 @@
 import { useEffect, useState } from 'react';
 import Modal from '../components/Modal.jsx';
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_MAP } from '../components/icons.jsx';
-import { fmtEur } from '../format.js';
+import { fmtEur, fmtDay, parseMoney } from '../format.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-// Parses "123.45" / "123,45" into integer cents; returns null if invalid
-export function parseMoney(s) {
-  const t = String(s ?? '').trim().replace(/\s/g, '').replace(',', '.');
-  if (!/^\d*\.?\d+$|^\d+\.$/.test(t)) return null;
-  return Math.round(parseFloat(t) * 100);
-}
 
 export default function ExpenseModal({ open, onClose, onSaved, expense, car, api, toast }) {
   const [f, setF] = useState({ date: ymd(new Date()), category: '', amount: '', note: '' });
@@ -42,6 +35,7 @@ export default function ExpenseModal({ open, onClose, onSaved, expense, car, api
     if (amount == null || amount <= 0) { setErr('Amount must be greater than 0.'); return; }
     const carId = expense?.car_id || car?.id;
     if (!carId) { setErr('No car selected.'); return; }
+    if (car?.sale_date && f.date > car.sale_date) { setErr(`Car was retired on ${fmtDay(car.sale_date)}.`); return; }
     setSaving(true); setErr('');
     try {
       const payload = {

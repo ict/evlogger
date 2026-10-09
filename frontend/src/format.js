@@ -3,6 +3,18 @@ export function fmtEur(v) { return (v / 100).toFixed(2); }
 export function fmtDate(s) {
   return new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
+// 'YYYY-MM-DD' calendar day, parsed as a local date (no UTC shift)
+export function fmtDay(s) {
+  if (!s) return '';
+  const [y, m, d] = String(s).slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+// Parses "123.45" / "123,45" into integer cents; returns null if invalid
+export function parseMoney(s) {
+  const t = String(s ?? '').trim().replace(/\s/g, '').replace(',', '.');
+  if (!/^\d*\.?\d+$|^\d+\.$/.test(t)) return null;
+  return Math.round(parseFloat(t) * 100);
+}
 export function fmtDateTimeInput(s) {
   const d = new Date(s);
   const pad = (n) => String(n).padStart(2, '0');

@@ -100,6 +100,9 @@ function generateMockCharges() {
     cursor.setDate(cursor.getDate() + rnd(9, 17));
   }
   car3.odometer = car3.sale_odometer = odo3 + rnd(20, 120);
+  // Like the backend, a car's odometer follows its newest charge
+  MOCK_CARS.find((c) => c.id === 'car1').odometer = odo1;
+  MOCK_CARS.find((c) => c.id === 'car2').odometer = odo2;
 
   return list.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
@@ -153,7 +156,23 @@ export function makeMockApi() {
     async getMe() { return { username: 'demo', full_name: 'Demo User', email: 'demo@chargelogger.app' }; },
     async getCars() { await delay(); return cars; },
     async createCar(d) { await delay(); const c = { ...d, id: nid(), owner_id: 'demo', retired: !!d.sale_date }; cars.push(c); return c; },
-    async updateCar(id, d) { await delay(); const i = cars.findIndex((c) => c.id === id); if (i >= 0) { cars[i] = { ...cars[i], ...d }; cars[i].retired = !!cars[i].sale_date; } return cars[i]; },
+    async updateCar(id, d) {
+      await delay();
+      const i = cars.findIndex((c) => c.id === id);
+      if (i < 0) return undefined;
+      const m = { ...cars[i], ...d };
+      if (!m.sale_date && (m.sale_price != null || m.sale_odometer != null)) throw new Error('sale_price and sale_odometer require a sale_date');
+      if (m.sale_date) {
+        if (m.purchase_date && m.sale_date < m.purchase_date) throw new Error('sale_date must not be before purchase_date');
+        const maxOdo = charges.filter((c) => c.car_id === id).reduce((x, c) => Math.max(x, c.car_odometer || 0), 0);
+        m.sale_odometer = m.sale_odometer ?? m.odometer;
+        if (m.sale_odometer < maxOdo) throw new Error(`sale_odometer must be at least the latest charge odometer (${maxOdo})`);
+        m.sale_price = m.sale_price ?? 0;
+      }
+      m.retired = !!m.sale_date;
+      cars[i] = m;
+      return m;
+    },
     async deleteCar(id) { await delay(); cars = cars.filter((c) => c.id !== id); charges = charges.filter((c) => c.car_id !== id); expenses = expenses.filter((e) => e.car_id !== id); return null; },
     async getCpos() { await delay(); return cpos; },
     async createCpo(d) { await delay(); const c = { ...d, id: nid(), owner_id: 'demo' }; cpos.push(c); return c; },

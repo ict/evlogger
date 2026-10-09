@@ -9,6 +9,9 @@ import CposView from './views/CposView.jsx';
 import YearlyTrendsView from './views/YearlyTrendsView.jsx';
 import AdminView from './views/AdminView.jsx';
 import CarModal from './modals/CarModal.jsx';
+import RetireCarModal from './modals/RetireCarModal.jsx';
+import ConfirmDialog from './components/ConfirmDialog.jsx';
+import Badge from './components/Badge.jsx';
 import ApiTokensModal from './modals/ApiTokensModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 
@@ -41,6 +44,8 @@ export default function App() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [showCarModal, setShowCarModal] = useState(false);
   const [editCar, setEditCar] = useState(null);
+  const [retireCar, setRetireCar] = useState(null);
+  const [reactivateCar, setReactivateCar] = useState(null);
   const [showTokensModal, setShowTokensModal] = useState(false);
   const [toasts, setToasts] = useState([]);
 
@@ -82,8 +87,14 @@ export default function App() {
   const loadCars = useCallback(() => {
     if (!apiClient) return;
     apiClient.getCars().then((data) => {
-      setCars(data || []);
-      if (data?.length && !selectedCarId) handleSetSelectedCarId(data[0].id);
+      const list = data || [];
+      setCars(list);
+      // keep the selection if the car still exists; otherwise first active car, else first car
+      if (!list.some((c) => c.id === selectedCarId)) {
+        const next = list.find((c) => !c.retired) || list[0];
+        if (next) handleSetSelectedCarId(next.id);
+        else if (selectedCarId) handleSetSelectedCarId('');
+      }
     }).catch((e) => { if (e.status === 401) logout(); });
   }, [apiClient, selectedCarId]);
 
@@ -130,7 +141,33 @@ export default function App() {
     setAuth(demoAuth);
   }, []);
 
+  const reactivate = async () => {
+    const car = reactivateCar;
+    setReactivateCar(null);
+    if (!car) return;
+    try {
+      await apiClient.updateCar(car.id, {
+        name: car.name,
+        make: car.make || undefined,
+        model: car.model || undefined,
+        color: car.color,
+        odometer: car.odometer,
+        battery_capacity: car.battery_capacity,
+        purchase_price: car.purchase_price ?? null,
+        purchase_date: car.purchase_date ?? null,
+        purchase_odometer: car.purchase_odometer ?? null,
+        sale_price: null,
+        sale_date: null,
+        sale_odometer: null,
+      });
+      toast(`${car.name} reactivated`, 'success');
+      loadCars();
+    } catch (e) { toast(e.message, 'error'); }
+  };
+
   const selectedCar = cars.find((c) => c.id === selectedCarId);
+  const activeCars = cars.filter((c) => !c.retired);
+  const retiredCars = cars.filter((c) => c.retired);
 
   if (!auth) return <LoginScreen onLogin={setAuth} onDemo={handleDemo} />;
 
@@ -175,19 +212,21 @@ export default function App() {
             <button className="car-switcher" onClick={() => setCarDropdown((d) => !d)}>
               <div className="car-dot" style={{ background: selectedCar?.color || '#94a3b8' }}></div>
               {selectedCar?.name || 'Select car'}
+              {selectedCar?.retired && <Badge type="Retired" />}
               <span className="car-chevron">▾</span>
             </button>
             {carDropdown && (
               <div className="dropdown-menu" style={{ minWidth: 220 }}>
-                {cars.map((c) => (
-                  <div key={c.id} className={`dropdown-item${c.id === selectedCarId ? ' active' : ''}`} onClick={() => { handleSetSelectedCarId(c.id); setCarDropdown(false); }}>
+                {[...activeCars, ...(retiredCars.length ? [null] : []), ...retiredCars].map((c) => (c === null ? <div key="retired-sep" className="dropdown-sep" /> : (
+                  <div key={c.id} className={`dropdown-item${c.id === selectedCarId ? ' active' : ''}${c.retired ? ' car-retired' : ''}`} onClick={() => { handleSetSelectedCarId(c.id); setCarDropdown(false); }}>
                     <div className="car-dot" style={{ background: c.color || '#94a3b8' }}></div>
                     <div>
                       <div style={{ fontWeight: 600 }}>{c.name}</div>
                       {c.make && <div style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 400 }}>{c.make} {c.model}</div>}
                     </div>
+                    {c.retired && <span style={{ marginLeft: 'auto' }}><Badge type="Retired" /></span>}
                   </div>
-                ))}
+                )))}
                 <div className="dropdown-sep" />
                 <div className="dropdown-item" onClick={() => { setEditCar(null); setShowCarModal(true); setCarDropdown(false); }}>
                   <span>+</span> Add car
@@ -195,6 +234,11 @@ export default function App() {
                 {selectedCar && (
                   <div className="dropdown-item" onClick={() => { setEditCar(selectedCar); setShowCarModal(true); setCarDropdown(false); }}>
                     ✎ Edit {selectedCar.name}
+                  </div>
+                )}
+                {selectedCar && (
+                  <div className="dropdown-item" onClick={() => { setCarDropdown(false); if (selectedCar.retired) setReactivateCar(selectedCar); else setRetireCar(selectedCar); }}>
+                    {selectedCar.retired ? `↺ Reactivate ${selectedCar.name}` : `⏻ Retire ${selectedCar.name}…`}
                   </div>
                 )}
               </div>
@@ -232,16 +276,22 @@ export default function App() {
             <>
               <div className="mobile-menu-sep" />
               <div className="mobile-menu-section-label">Car</div>
-              {cars.map((c) => (
-                <button key={c.id} className={`mobile-menu-tab${c.id === selectedCarId ? ' active' : ''}`} onClick={() => { handleSetSelectedCarId(c.id); setMobileMenu(false); }}>
+              {[...activeCars, ...(retiredCars.length ? [null] : []), ...retiredCars].map((c) => (c === null ? <div key="retired-sep" className="mobile-menu-sep" /> : (
+                <button key={c.id} className={`mobile-menu-tab${c.id === selectedCarId ? ' active' : ''}${c.retired ? ' car-retired' : ''}`} onClick={() => { handleSetSelectedCarId(c.id); setMobileMenu(false); }}>
                   <div className="car-dot" style={{ background: c.color || '#94a3b8' }} />
                   {c.name}
+                  {c.retired && <Badge type="Retired" />}
                 </button>
-              ))}
+              )))}
               <div className="mobile-menu-sep" />
               <button className="mobile-menu-tab" onClick={() => { setEditCar(null); setShowCarModal(true); setMobileMenu(false); }}>+ Add car</button>
               {selectedCar && (
                 <button className="mobile-menu-tab" onClick={() => { setEditCar(selectedCar); setShowCarModal(true); setMobileMenu(false); }}>✎ Edit {selectedCar.name}</button>
+              )}
+              {selectedCar && (
+                <button className="mobile-menu-tab" onClick={() => { setMobileMenu(false); if (selectedCar.retired) setReactivateCar(selectedCar); else setRetireCar(selectedCar); }}>
+                  {selectedCar.retired ? `↺ Reactivate ${selectedCar.name}` : `⏻ Retire ${selectedCar.name}…`}
+                </button>
               )}
             </>
           )}
@@ -267,6 +317,8 @@ export default function App() {
       )}
 
       <CarModal open={showCarModal} onClose={() => setShowCarModal(false)} onSaved={() => { setShowCarModal(false); loadCars(); }} car={editCar} api={apiClient} toast={toast} />
+      <RetireCarModal open={!!retireCar} onClose={() => setRetireCar(null)} onSaved={() => { setRetireCar(null); loadCars(); }} car={retireCar} api={apiClient} toast={toast} />
+      <ConfirmDialog open={!!reactivateCar} title="Reactivate car" confirmLabel="Reactivate" danger={false} message={`Reactivate ${reactivateCar?.name}? The sale data will be removed.`} onConfirm={reactivate} onCancel={() => setReactivateCar(null)} />
       <ApiTokensModal open={showTokensModal} onClose={() => setShowTokensModal(false)} api={apiClient} toast={toast} />
       <ToastContainer toasts={toasts} />
     </div>

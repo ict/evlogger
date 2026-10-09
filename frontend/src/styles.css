@@ -87,6 +87,11 @@ tr:hover .row-actions { opacity: 1; }
 /* --- Badges --- */
 .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
 .badge-ac { background: #e0f2fe; color: #0369a1; }
+.badge-retired { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); font-size: 10px; padding: 1px 6px; }
+.car-retired { opacity: 0.6; }
+.retired-banner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-size: 13px; color: var(--text-muted); }
+.retired-banner svg { width: 18px; height: 18px; flex-shrink: 0; }
+.retired-banner strong { color: var(--text); font-weight: 600; }
 .badge-dc { background: #fef3c7; color: #b45309; }
 
 /* --- Buttons --- */

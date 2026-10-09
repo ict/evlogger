@@ -4,7 +4,7 @@ import TimeframeBar from '../components/TimeframeBar.jsx';
 import LineChart from '../components/charts/LineChart.jsx';
 import BarChart from '../components/charts/BarChart.jsx';
 import { CategoryChip } from '../components/icons.jsx';
-import { getTimeframeRange, fmtMoney, fmtMoney0, fmtPerKm, fmtPer100km, fmtMonths } from '../format.js';
+import { getTimeframeRange, fmtMoney, fmtMoney0, fmtPerKm, fmtPer100km, fmtMonths, fmtDay } from '../format.js';
 import { computeTco, expensesInRange, sumExpenses, categoryBreakdown } from '../costs.js';
 
 const CPO_PALETTE = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#a855f7'];
@@ -182,6 +182,10 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
     };
   }, [tfCharges]);
 
+  // Retired car whose selected range lies entirely after the sale: nothing to show
+  const afterRetirement = !!(car?.retired && car.sale_date && tf !== 'All'
+    && (() => { const r = getTimeframeRange(tf, fromDate, toDate); return r.from_date && r.from_date.slice(0, 10) > car.sale_date; })());
+
   if (!selectedCarId) return (
     <div className="empty-state"><div className="empty-state-icon">🚗</div><div className="empty-state-text">No car selected. Add a car to get started.</div></div>
   );
@@ -195,6 +199,19 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
         </div>
         <TimeframeBar value={tf} onChange={setTf} fromDate={fromDate} toDate={toDate} onFrom={setFromDate} onTo={setToDate} />
       </div>
+
+      {car?.retired && tco && (
+        <div className="retired-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+          <span>
+            <strong>Retired on {fmtDay(car.sale_date)}</strong>
+            {tco.months != null && <> · owned {fmtMonths(tco.months)}</>}
+            {' · '}{tco.km.toLocaleString('de-DE')} km
+            {car.sale_price > 0 && <> · sold for {fmtMoney(car.sale_price)} €</>}
+            {afterRetirement && <><br />Showing range after retirement — select 'All' to see history.</>}
+          </span>
+        </div>
+      )}
 
       {tfLoading ? <Spinner /> : (
         <>

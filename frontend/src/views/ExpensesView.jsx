@@ -3,7 +3,7 @@ import Spinner from '../components/Spinner.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import ExpenseModal from '../modals/ExpenseModal.jsx';
 import { CategoryChip, CategoryIcon, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_MAP } from '../components/icons.jsx';
-import { fmtEur, fmtDate } from '../format.js';
+import { fmtEur, fmtDate, fmtDay } from '../format.js';
 
 const safeStorage = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -73,7 +73,7 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
           className="btn btn-primary btn-sm"
           disabled={retired || !car}
           style={retired ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-          title={retired ? `Car retired on ${fmtDate(car.sale_date)}` : undefined}
+          title={retired ? `Car retired on ${fmtDay(car.sale_date)}` : undefined}
           onClick={openAdd}
         >+ Add expense</button>
       </div>

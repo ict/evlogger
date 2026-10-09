@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../components/Modal.jsx';
-import { parseMoney } from './ExpenseModal.jsx';
-import { fmtEur } from '../format.js';
+import { fmtEur, fmtDay, parseMoney } from '../format.js';
 
 export default function CarModal({ open, onClose, onSaved, car, api, toast }) {
   const [f, setF] = useState({ name: '', make: '', model: '', color: '#3b82f6', odometer: '', battery_capacity: '', purchase_price: '', purchase_date: '', purchase_odometer: '' });
@@ -118,6 +117,15 @@ export default function CarModal({ open, onClose, onSaved, car, api, toast }) {
         <input type="number" className="form-input" placeholder="0" min="0" value={f.purchase_odometer} onChange={(e) => set('purchase_odometer', e.target.value)} />
         <p className="form-hint">For used cars.</p>
       </div>
+      {car?.retired && (
+        <div className="form-group">
+          <label className="form-label">Sold</label>
+          <div style={{ fontSize: 13.5 }}>
+            {fmtDay(car.sale_date)} · {fmtEur(car.sale_price ?? 0)} € · {(car.sale_odometer ?? car.odometer ?? 0).toLocaleString('de-DE')} km
+          </div>
+          <p className="form-hint">Use Reactivate in the car menu to undo.</p>
+        </div>
+      )}
     </Modal>
   );
 }

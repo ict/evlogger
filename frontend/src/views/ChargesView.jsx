@@ -3,7 +3,7 @@ import Spinner from '../components/Spinner.jsx';
 import Badge from '../components/Badge.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import ChargeModal from '../modals/ChargeModal.jsx';
-import { fmtKwh, fmtEur, fmtDate } from '../format.js';
+import { fmtKwh, fmtEur, fmtDate, fmtDay } from '../format.js';
 
 const PAGE_SIZE = 20;
 
@@ -13,6 +13,8 @@ export default function ChargesView({ api, charges, loading, reload, cars, cpos,
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const car = cars.find((c) => c.id === selectedCarId);
+  const retired = !!car?.retired;
 
   const distanceMap = useMemo(() => {
     const sorted = charges
@@ -50,7 +52,13 @@ export default function ChargesView({ api, charges, loading, reload, cars, cpos,
         <div className="section-title">Charges</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <input className="input-sm" placeholder="Search CPO, note…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} style={{ width: 180 }} />
-          <button className="btn btn-primary btn-sm" onClick={() => { setEditCharge(null); setShowModal(true); }}>+ Add charge</button>
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={retired}
+            style={retired ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+            title={retired ? `Car retired on ${fmtDay(car.sale_date)}` : undefined}
+            onClick={() => { setEditCharge(null); setShowModal(true); }}
+          >+ Add charge</button>
         </div>
       </div>
 

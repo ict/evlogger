@@ -15,6 +15,7 @@ export const TollsParkingIcon = mk(<><rect width="18" height="18" x="3" y="3" rx
 export const CleaningIcon = mk(<><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /><path d="M20 3v4" /><path d="M22 5h-4" /><path d="M4 17v2" /><path d="M5 18H3" /></>);
 export const MaintenanceIcon = mk(<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6.001 6.001 0 0 1 7.057-8.259c.438.12.54.662.219.984z" />);
 export const AccessoriesIcon = mk(<><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="M12 22V12" /><polyline points="3.29 7 12 12 20.71 7" /><path d="m7.5 4.27 9 5.15" /></>);
+export const SubscriptionsIcon = mk(<><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></>);
 export const OtherIcon = mk(<><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /><path d="M12 17.5v-11" /></>);
 
 export const EXPENSE_CATEGORIES = [
@@ -25,6 +26,7 @@ export const EXPENSE_CATEGORIES = [
   { key: 'cleaning', label: 'Cleaning', Icon: CleaningIcon, color: '#06b6d4' },
   { key: 'maintenance', label: 'Maintenance', Icon: MaintenanceIcon, color: '#f97316' },
   { key: 'accessories', label: 'Accessories', Icon: AccessoriesIcon, color: '#a855f7' },
+  { key: 'subscriptions', label: 'Subscriptions', Icon: SubscriptionsIcon, color: '#ec4899' },
   { key: 'other', label: 'Other', Icon: OtherIcon, color: '#9ca3af' },
 ];
 

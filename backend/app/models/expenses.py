@@ -14,6 +14,7 @@ class ExpenseCategory(str, Enum):
     cleaning = 'cleaning'
     maintenance = 'maintenance'
     accessories = 'accessories'
+    subscriptions = 'subscriptions'
     other = 'other'
 
 

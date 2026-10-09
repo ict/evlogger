@@ -5,6 +5,7 @@ Tests for the expense endpoints
 import pytest
 from starlette import status
 
+from app.models.expenses import ExpenseCategory
 from tests.conftest import create_car, new_user_headers
 
 
@@ -84,6 +85,12 @@ def test_delete(test_app, headers, car):
 def test_delete_missing_is_404(test_app, headers):
     response = test_app.delete('/expense/64b7f0c2a1b2c3d4e5f60718', headers=headers)
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.parametrize('category', [c.value for c in ExpenseCategory])
+def test_every_category_is_accepted(test_app, headers, car, category):
+    response = test_app.post('/expense', headers=headers, json=expense_payload(car['id'], category=category))
+    assert response.status_code == status.HTTP_201_CREATED, response.content
 
 
 @pytest.mark.parametrize('category', ['food', '', 'Tires'])

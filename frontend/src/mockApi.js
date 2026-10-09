@@ -22,6 +22,7 @@ const PROFILES = {
   car1: {
     seed: 11, consumption: 16.5, commute: 36, weekend: [0, 80], tripEvery: 55, trip: [320, 680],
     home: true, dc: ['cpo1', 'cpo1', 'cpo2'], insurance: [108000, 4000], adac: true,
+    subscription: { monthly: true, amount: 999, note: 'Premium Connectivity' },
     // Tesla: no fixed service plan, cabin filter yearly, HU every two years
     maintenance: (y) => [['Cabin filter', 7900], ...(y % 2 === 1 ? [['HU / TÜV inspection', 15900]] : [])],
     summerTiresKm: 38000, tireSet: 118000, winterSet: 162000,
@@ -30,6 +31,7 @@ const PROFILES = {
   car2: {
     seed: 22, consumption: 18.5, commute: 26, weekend: [0, 70], tripEvery: 75, trip: [280, 520],
     home: false, ac: ['cpo4', 'cpo4', 'cpo3'], dc: ['cpo2', 'cpo3', 'cpo5'], insurance: [86000, 0], adac: false,
+    subscription: { monthly: false, amount: 9900, note: 'We Connect Plus' },
     maintenance: () => [],
     summerTiresKm: 45000, tireSet: 96000, winterSet: 138000,
     oneOff: [[2, 'tax', 9800, 'Registration & plates'], [14, 'accessories', 8900, 'Trunk liner']],
@@ -110,7 +112,9 @@ function simulateCar(car, p, ids) {
     if (day % 365 === 0) {
       expense(d, 'insurance', p.insurance[0] - ownedYear * p.insurance[1] + rnd(-2000, 2000), 'Annual premium');
       if (p.adac) expense(d, 'other', 9400, 'ADAC membership');
+      if (p.subscription && !p.subscription.monthly) expense(d, 'subscriptions', p.subscription.amount, p.subscription.note);
     }
+    if (p.subscription?.monthly && day % 30 === 0) expense(d, 'subscriptions', p.subscription.amount, p.subscription.note);
     if (day % 365 === 200) p.maintenance(ownedYear).forEach(([note, amount]) => expense(d, 'maintenance', amount, note));
     const m = d.getMonth(), dom = d.getDate();
     if (m === 9 && dom === 20) {

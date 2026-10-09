@@ -46,7 +46,7 @@ export function makeApi(baseUrl, token) {
     deleteCharge: (id) => req(`/charge/${id}`, { method: 'DELETE' }),
     getExpenses(p = {}) {
       const q = new URLSearchParams({ limit: p.limit || 500, offset: p.offset || 0 });
-      ['car_id', 'from_date', 'to_date', 'category'].forEach((k) => { if (p[k]) q.set(k, p[k]); });
+      ['car_id', 'from_date', 'to_date', 'category', 'kind'].forEach((k) => { if (p[k]) q.set(k, p[k]); });
       return req(`/expense/?${q}`);
     },
     createExpense: (d) => req('/expense/', { method: 'POST', body: JSON.stringify(d) }),

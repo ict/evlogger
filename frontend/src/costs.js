@@ -5,15 +5,19 @@ import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_MAP } from './components/icons.jsx
 const catKey = (c) => (EXPENSE_CATEGORY_MAP[c] ? c : 'other');
 const forCar = (list, carId) => (list || []).filter((x) => x.car_id === carId);
 const yearOf = (d) => new Date(d).getFullYear();
+// Entries with kind 'income' are money back (e.g. sold tires); missing kind = expense
+export const isIncome = (e) => e.kind === 'income';
+const costsOnly = (list) => list.filter((e) => !isIncome(e));
 
 // cents; charges without price_total count as 0
 export const sumCharging = (charges) => charges.reduce((s, c) => s + (c.price_total || 0), 0);
-export const sumExpenses = (expenses) => expenses.reduce((s, e) => s + (e.amount || 0), 0);
+export const sumExpenses = (expenses) => costsOnly(expenses).reduce((s, e) => s + (e.amount || 0), 0);
+export const sumIncome = (expenses) => expenses.filter(isIncome).reduce((s, e) => s + (e.amount || 0), 0);
 
-// { categoryKey: cents } — unknown categories are folded into 'other'
+// { categoryKey: cents } of costs only (income excluded) — unknown categories are folded into 'other'
 export function expensesByCategory(expenses) {
   const out = {};
-  expenses.forEach((e) => { const k = catKey(e.category); out[k] = (out[k] || 0) + (e.amount || 0); });
+  costsOnly(expenses).forEach((e) => { const k = catKey(e.category); out[k] = (out[k] || 0) + (e.amount || 0); });
   return out;
 }
 
@@ -36,13 +40,15 @@ export function expensesInRange(expenses, carId, range = {}) {
   });
 }
 
-// { [year]: { charging, expenses, byCategory } } for one car (cents). Union of years.
+// { [year]: { charging, expenses, income, byCategory } } for one car (cents). Union of years.
+// expenses/byCategory are costs only; income is kept separate.
 export function yearlyCosts(charges, expenses, carId) {
   const out = {};
-  const slot = (y) => (out[y] ||= { charging: 0, expenses: 0, byCategory: {} });
+  const slot = (y) => (out[y] ||= { charging: 0, expenses: 0, income: 0, byCategory: {} });
   forCar(charges, carId).forEach((c) => { slot(yearOf(c.date)).charging += c.price_total || 0; });
   forCar(expenses, carId).forEach((e) => {
     const s = slot(yearOf(e.date));
+    if (isIncome(e)) { s.income += e.amount || 0; return; }
     const k = catKey(e.category);
     s.expenses += e.amount || 0;
     s.byCategory[k] = (s.byCategory[k] || 0) + (e.amount || 0);
@@ -84,6 +90,7 @@ export function computeTco(car, charges, expenses, now = new Date()) {
   const retired = !!car.retired;
   const charging = sumCharging(cs);
   const exp = sumExpenses(es);
+  const income = sumIncome(es);
   const hasPurchase = car.purchase_price != null;
   // Depreciation: retired = purchase − sale; active = purchase − estimated current value
   const estimate = !retired ? estimateValue(car, now) : null;
@@ -93,10 +100,10 @@ export function computeTco(car, charges, expenses, now = new Date()) {
   const endOdo = retired ? (car.sale_odometer || maxCharge) : Math.max(car.odometer || 0, maxCharge);
   const km = Math.max(0, endOdo - (car.purchase_odometer ?? 0));
 
-  const running = charging + exp;
+  const running = charging + exp - income;
   const months = ownershipMonths(car, now);
   return {
-    retired, hasPurchase, charging, expenses: exp, byCategory: categoryBreakdown(es),
+    retired, hasPurchase, charging, expenses: exp, income, byCategory: categoryBreakdown(es),
     capital, estimate, km, running,
     allIn: hasPurchase ? running + capital : null,
     runningPerKm: km > 0 ? running / 100 / km : null,

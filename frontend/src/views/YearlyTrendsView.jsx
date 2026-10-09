@@ -26,7 +26,7 @@ function YearRow({ data, showExpenses }) {
     { label: 'Total Distance',   value: totalDist > 0 ? totalDist.toLocaleString('de-DE') + ' km' : '—', delta: prev && totalDist > 0 ? <Delta val={totalDist} prev={prev.totalDist} lowerIsBetter={false} unit="km" decimals={0} /> : null },
     { label: showExpenses ? 'Charging' : 'Total Price', value: totalPrice > 0 ? totalPrice.toFixed(2) + ' €' : '—', delta: d(totalPrice, prev?.totalPrice, totalPrice > 0) },
     ...(showExpenses ? [
-      { label: 'Other costs', value: otherCosts > 0 ? otherCosts.toFixed(2) + ' €' : '—', delta: d(otherCosts, prev?.otherCosts, otherCosts > 0) },
+      { label: 'Other costs', value: otherCosts !== 0 ? otherCosts.toFixed(2) + ' €' : '—', delta: d(otherCosts, prev?.otherCosts, otherCosts !== 0) },
       { label: 'Total', value: totalCost > 0 ? totalCost.toFixed(2) + ' €' : '—', delta: d(totalCost, prev?.totalCost, totalCost > 0) },
     ] : []),
     { label: 'Price per 100 km', value: pricePer100km > 0 ? pricePer100km.toFixed(2) + ' €' : '—',       delta: d(pricePer100km, prev?.pricePer100km, pricePer100km > 0) },
@@ -65,7 +65,7 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
     const costs = yearlyCosts(charges, expenses, selectedCarId);
     // Union: years with only expenses (no charges) still appear
     const years = [...new Set([...Object.keys(byYear), ...Object.keys(costs)].map(Number))].sort((a, b) => a - b);
-    const cents = (yr) => costs[yr] || { charging: 0, expenses: 0, byCategory: {} };
+    const cents = (yr) => costs[yr] || { charging: 0, expenses: 0, income: 0, byCategory: {} };
 
     // Fuel-log convention: charge i refills segment (i-1, i). Attribute to charge i's year.
     // SoC-aware when both endpoints carry SoC and capacity known; fallback to raw kwh.
@@ -104,10 +104,12 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
       const m = yearMetrics(yr);
       const c = cents(yr);
       const totalPrice = c.charging / 100;
-      const otherCosts = c.expenses / 100;
+      // net of income (sold tires, refunds)
+      const income = c.income / 100;
+      const otherCosts = c.expenses / 100 - income;
       const totalCost = totalPrice + otherCosts;
       return {
-        ...m, totalPrice, otherCosts, totalCost, byCategory: c.byCategory,
+        ...m, totalPrice, otherCosts, income, totalCost, byCategory: c.byCategory,
         runningPer100km: m.totalDist > 0 ? totalCost / m.totalDist * 100 : 0,
       };
     };
@@ -121,6 +123,8 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
   }, [charges, expenses, selectedCarId, cars]);
 
   const categories = useMemo(() => usedCategories(expenses, selectedCarId), [expenses, selectedCarId]);
+  const hasIncome = yearlyData.some((d) => d.income > 0);
+  const showExpenses = categories.length > 0 || hasIncome;
 
   if (loading || expensesLoading) return <Spinner />;
   if (yearlyData.length === 0) return (
@@ -140,7 +144,7 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Full dataset — all time</span>
       </div>
 
-      {yearlyData.map((d) => <YearRow key={d.year} data={d} showExpenses={categories.length > 0} />)}
+      {yearlyData.map((d) => <YearRow key={d.year} data={d} showExpenses={showExpenses} />)}
 
       {hasMultiple && (
         <div className="charts-grid" style={{ marginTop: 8 }}>
@@ -150,7 +154,7 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
               <BarChart labels={labels} values={yearlyData.map((d) => parseFloat(d.pricePer100km.toFixed(2)))} unit="€/100 km" color="#f97316" showValues valueDecimals={2} valueUnit="€" />
             </div>
           </div>
-          {categories.length > 0 && (
+          {showExpenses && (
             <div className="chart-card">
               <div className="chart-card-header"><div className="chart-card-title">Running cost per 100 km <span className="chart-card-unit">€ · charging + other</span></div></div>
               <div className="chart-canvas-wrap">
@@ -171,14 +175,15 @@ export default function YearlyTrendsView({ charges, loading, expenses = [], expe
             </div>
           </div>
           <div className="chart-card" style={{ gridColumn: '1 / -1' }}>
-            <div className="chart-card-header"><div className="chart-card-title">Total Cost<span className="chart-card-unit">€ per year{categories.length > 0 ? ' · charging + expenses' : ''}</span></div></div>
-            <div className="chart-canvas-wrap" style={{ height: categories.length > 0 ? 380 : 260 }}>
-              {categories.length > 0 ? (
+            <div className="chart-card-header"><div className="chart-card-title">Total Cost<span className="chart-card-unit">€ per year{showExpenses ? ` · charging + expenses${hasIncome ? ' − income' : ''}` : ''}</span></div></div>
+            <div className="chart-canvas-wrap" style={{ height: showExpenses ? 380 : 260 }}>
+              {showExpenses ? (
                 <BarChart
                   labels={labels}
                   datasets={[
                     { label: 'Charging', values: yearlyData.map((d) => parseFloat(d.totalPrice.toFixed(2))), color: '#2563eb' },
                     ...categories.map((c) => ({ label: c.label, values: yearlyData.map((d) => parseFloat(((d.byCategory[c.key] || 0) / 100).toFixed(2))), color: c.color })),
+                    ...(hasIncome ? [{ label: 'Income', values: yearlyData.map((d) => -parseFloat(d.income.toFixed(2))), color: '#16a34a' }] : []),
                   ]}
                   stacked unit="€" showValues valueDecimals={0} valueUnit="€"
                 />

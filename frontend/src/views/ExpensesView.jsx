@@ -4,6 +4,7 @@ import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import ExpenseModal from '../modals/ExpenseModal.jsx';
 import { CategoryChip, CategoryIcon, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_MAP } from '../components/icons.jsx';
 import { fmtEur, fmtDate, fmtDay } from '../format.js';
+import { isIncome } from '../costs.js';
 
 const safeStorage = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -12,6 +13,11 @@ const safeStorage = {
 
 // Unknown categories fall back to "other"
 const catKey = (e) => (EXPENSE_CATEGORY_MAP[e.category] ? e.category : 'other');
+// Income (sold tires, refunds) counts negative towards totals
+const signed = (e) => (isIncome(e) ? -1 : 1) * (e.amount || 0);
+// Net sums below zero mean more money came back than went out: show as green "+"
+const fmtNet = (cents) => `${cents < 0 ? '+' : ''}${fmtEur(Math.abs(cents))} €`;
+const netStyle = (cents) => (cents < 0 ? { color: 'var(--green)' } : undefined);
 
 export default function ExpensesView({ api, expenses, loading, reload, cars, selectedCarId, toast }) {
   const [showModal, setShowModal] = useState(false);
@@ -19,7 +25,7 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [cat, setCat] = useState(() => {
     const v = safeStorage.get('cl_expCat');
-    return v && EXPENSE_CATEGORY_MAP[v] ? v : 'all';
+    return v && (EXPENSE_CATEGORY_MAP[v] || v === 'income') ? v : 'all';
   });
 
   const car = cars.find((c) => c.id === selectedCarId);
@@ -33,15 +39,16 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
   );
 
   const filtered = useMemo(
-    () => (cat === 'all' ? carExpenses : carExpenses.filter((e) => catKey(e) === cat)),
+    () => (cat === 'all' ? carExpenses : cat === 'income' ? carExpenses.filter(isIncome) : carExpenses.filter((e) => catKey(e) === cat)),
     [carExpenses, cat],
   );
 
-  const total = useMemo(() => filtered.reduce((s, e) => s + (e.amount || 0), 0), [filtered]);
+  const total = useMemo(() => filtered.reduce((s, e) => s + signed(e), 0), [filtered]);
+  const hasIncome = useMemo(() => carExpenses.some(isIncome), [carExpenses]);
 
   const breakdown = useMemo(() => {
     const sums = {};
-    for (const e of carExpenses) sums[catKey(e)] = (sums[catKey(e)] || 0) + (e.amount || 0);
+    for (const e of carExpenses.filter((x) => !isIncome(x))) sums[catKey(e)] = (sums[catKey(e)] || 0) + (e.amount || 0);
     return Object.entries(sums).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   }, [carExpenses]);
 
@@ -52,7 +59,7 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
       let g = groups[groups.length - 1];
       if (!g || g.year !== y) { g = { year: y, items: [], sum: 0 }; groups.push(g); }
       g.items.push(e);
-      g.sum += e.amount || 0;
+      g.sum += signed(e);
     }
     return groups;
   }, [filtered]);
@@ -90,6 +97,13 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
         <>
           <div className="exp-chips">
             <button className={`chip${cat === 'all' ? ' active' : ''}`} onClick={() => changeCat('all')}>All</button>
+            {hasIncome && (
+              <button
+                className={`chip${cat === 'income' ? ' active' : ''}`}
+                style={cat === 'income' ? { background: 'var(--green)', borderColor: 'var(--green)' } : undefined}
+                onClick={() => changeCat('income')}
+              >Income</button>
+            )}
             {EXPENSE_CATEGORIES.map((c) => (
               <button
                 key={c.key}
@@ -104,8 +118,8 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
 
           <div className="card exp-summary">
             <div className="exp-summary-total">
-              <div className="stat-label">{cat === 'all' ? 'Total' : EXPENSE_CATEGORY_MAP[cat].label}</div>
-              <div className="exp-total">{fmtEur(total)} €</div>
+              <div className="stat-label">{cat === 'all' ? (hasIncome ? 'Net total' : 'Total') : cat === 'income' ? 'Income' : EXPENSE_CATEGORY_MAP[cat].label}</div>
+              <div className="exp-total" style={netStyle(total)}>{fmtNet(total)}</div>
             </div>
             {cat === 'all' && breakdown.length > 1 && (
               <div className="exp-breakdown">
@@ -121,11 +135,11 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
 
           <div className="card" style={{ overflow: 'hidden' }}>
             {years.length === 0 && (
-              <div className="empty-state"><div className="empty-state-text">No expenses in this category.</div></div>
+              <div className="empty-state"><div className="empty-state-text">{cat === 'income' ? 'No income entries.' : 'No expenses in this category.'}</div></div>
             )}
             {years.map((g) => (
               <div key={g.year}>
-                <div className="exp-year"><span>{g.year}</span><span className="exp-year-sum">{fmtEur(g.sum)} €</span></div>
+                <div className="exp-year"><span>{g.year}</span><span className="exp-year-sum" style={netStyle(g.sum)}>{fmtNet(g.sum)}</span></div>
                 {g.items.map((e) => {
                   const c = EXPENSE_CATEGORY_MAP[catKey(e)];
                   return (
@@ -133,10 +147,10 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
                       <CategoryChip category={catKey(e)} />
                       <div className="exp-date">{fmtDate(e.date)}</div>
                       <div className="exp-main">
-                        <div className="exp-cat">{c.label}</div>
+                        <div className="exp-cat">{c.label}{isIncome(e) && <span className="exp-income-tag">Income</span>}</div>
                         {e.note && <div className="exp-note" title={e.note}>{e.note}</div>}
                       </div>
-                      <div className="exp-amount">{fmtEur(e.amount)} €</div>
+                      <div className={`exp-amount${isIncome(e) ? ' income' : ''}`}>{isIncome(e) ? '+' : ''}{fmtEur(e.amount)} €</div>
                       <div className="row-actions">
                         <button className="action-btn" title="Edit" onClick={() => { setEditExpense(e); setShowModal(true); }}>✎</button>
                         <button className="action-btn danger" title="Delete" onClick={() => setDeleteTarget(e.id)}>🗑</button>
@@ -159,7 +173,7 @@ export default function ExpensesView({ api, expenses, loading, reload, cars, sel
         api={api}
         toast={toast}
       />
-      <ConfirmDialog open={!!deleteTarget} message="Delete this expense? This cannot be undone." onConfirm={doDelete} onCancel={() => setDeleteTarget(null)} />
+      <ConfirmDialog open={!!deleteTarget} message="Delete this entry? This cannot be undone." onConfirm={doDelete} onCancel={() => setDeleteTarget(null)} />
     </div>
   );
 }

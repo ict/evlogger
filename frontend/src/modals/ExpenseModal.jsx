@@ -7,7 +7,7 @@ const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 export default function ExpenseModal({ open, onClose, onSaved, expense, car, api, toast }) {
-  const [f, setF] = useState({ date: ymd(new Date()), category: '', amount: '', note: '' });
+  const [f, setF] = useState({ date: ymd(new Date()), kind: 'expense', category: '', amount: '', note: '' });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -17,16 +17,19 @@ export default function ExpenseModal({ open, onClose, onSaved, expense, car, api
       if (expense) {
         setF({
           date: ymd(new Date(expense.date)),
+          kind: expense.kind === 'income' ? 'income' : 'expense',
           category: EXPENSE_CATEGORY_MAP[expense.category] ? expense.category : 'other',
           amount: fmtEur(expense.amount),
           note: expense.note || '',
         });
       } else {
-        setF({ date: ymd(new Date()), category: '', amount: '', note: '' });
+        setF({ date: ymd(new Date()), kind: 'expense', category: '', amount: '', note: '' });
       }
       setErr('');
     }
   }, [open, expense]);
+
+  const income = f.kind === 'income';
 
   const submit = async () => {
     if (!f.date) { setErr('Date is required.'); return; }
@@ -43,12 +46,13 @@ export default function ExpenseModal({ open, onClose, onSaved, expense, car, api
         date: new Date(f.date + 'T12:00:00').toISOString(),
         car_id: carId,
         category: f.category,
+        kind: f.kind,
         amount,
         note: f.note.trim() || undefined,
       };
       if (expense) await api.updateExpense(expense.id, payload);
       else await api.createExpense(payload);
-      toast('Expense saved!', 'success');
+      toast(income ? 'Income saved!' : 'Expense saved!', 'success');
       onSaved();
     } catch (e) { setErr(e.message); }
     setSaving(false);
@@ -58,15 +62,27 @@ export default function ExpenseModal({ open, onClose, onSaved, expense, car, api
     <Modal
       open={open}
       onClose={onClose}
-      title={expense ? 'Edit Expense' : 'New Expense'}
+      title={`${expense ? 'Edit' : 'New'} ${income ? 'Income' : 'Expense'}`}
       footer={(
         <>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? 'Saving…' : 'Save expense'}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? 'Saving…' : income ? 'Save income' : 'Save expense'}</button>
         </>
       )}
     >
       {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
+      <div className="form-group">
+        <div className="toggle-group">
+          <button type="button" className={`toggle-btn${!income ? ' active' : ''}`} onClick={() => set('kind', 'expense')}>Expense</button>
+          <button
+            type="button"
+            className={`toggle-btn${income ? ' active' : ''}`}
+            style={income ? { background: 'var(--green)' } : undefined}
+            onClick={() => set('kind', 'income')}
+          >Income</button>
+        </div>
+        {income && <p className="form-hint">Money back, e.g. sold tires or a refund. Lowers the car's cost of ownership.</p>}
+      </div>
       <div className="form-group">
         <label className="form-label">Category</label>
         <div className="cat-grid">

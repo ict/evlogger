@@ -18,11 +18,17 @@ class ExpenseCategory(str, Enum):
     other = 'other'
 
 
+class ExpenseKind(str, Enum):
+    expense = 'expense'
+    income = 'income'  # money back, e.g. selling old tires or a refund; reduces cost of ownership
+
+
 class Expense(BaseModel):
     date: datetime.datetime
     car_id: str
     car_name: str | None = None
     category: ExpenseCategory
+    kind: ExpenseKind = ExpenseKind.expense
     amount: int = Field(..., gt=0, description='Amount in 1/100s of currency (e.g. cents)')
     note: str | None = None
 

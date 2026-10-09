@@ -245,6 +245,8 @@ tr:hover .row-actions { opacity: 1; }
 .exp-cat { font-size: 13.5px; font-weight: 600; }
 .exp-note { font-size: 12.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .exp-amount { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.exp-amount.income { color: var(--green); }
+.exp-income-tag { margin-left: 8px; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
 .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .cat-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); font-family: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; text-align: center; line-height: 1.2; }
 .cat-btn:hover { background: var(--bg); }

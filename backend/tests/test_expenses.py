@@ -99,6 +99,21 @@ def test_invalid_category_is_422(test_app, headers, car, category):
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
+def test_kind_defaults_to_expense(test_app, headers, car):
+    assert create_expense(test_app, headers, car['id'])['kind'] == 'expense'
+
+
+def test_create_income(test_app, headers, car):
+    income = create_expense(test_app, headers, car['id'], kind='income', amount=20000, note='Sold summer tires')
+    assert income['kind'] == 'income'
+    assert income['amount'] == 20000
+
+
+def test_invalid_kind_is_422(test_app, headers, car):
+    response = test_app.post('/expense', headers=headers, json=expense_payload(car['id'], kind='gift'))
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
 @pytest.mark.parametrize('amount', [0, -1, -45000])
 def test_non_positive_amount_is_422(test_app, headers, car, amount):
     response = test_app.post('/expense', headers=headers, json=expense_payload(car['id'], amount=amount))
@@ -163,6 +178,7 @@ class TestListFilters:
             'feb_tax': create_expense(test_app, headers, car['id'], date='2024-02-10T10:00:00Z', category='tax'),
             'mar_tires': create_expense(test_app, headers, car['id'], date='2024-03-10T10:00:00Z'),
             'other_car': create_expense(test_app, headers, second_car['id'], date='2024-02-20T10:00:00Z'),
+            'apr_income': create_expense(test_app, headers, car['id'], date='2024-04-10T10:00:00Z', kind='income'),
         }
 
     def ids(self, test_app, headers, **params) -> list[str]:
@@ -172,7 +188,7 @@ class TestListFilters:
 
     def test_sorted_by_date_descending(self, test_app, headers, populated):
         assert self.ids(test_app, headers) == [
-            populated[key]['id'] for key in ('mar_tires', 'other_car', 'feb_tax', 'jan_tires')
+            populated[key]['id'] for key in ('apr_income', 'mar_tires', 'other_car', 'feb_tax', 'jan_tires')
         ]
 
     def test_filter_by_car(self, test_app, headers, populated):
@@ -181,13 +197,23 @@ class TestListFilters:
     def test_filter_by_category(self, test_app, headers, populated):
         assert self.ids(test_app, headers, category='tax') == [populated['feb_tax']['id']]
 
+    def test_filter_by_kind(self, test_app, headers, populated):
+        assert self.ids(test_app, headers, kind='income') == [populated['apr_income']['id']]
+        assert populated['apr_income']['id'] not in self.ids(test_app, headers, kind='expense')
+        assert len(self.ids(test_app, headers, kind='expense')) == 4
+
     def test_filter_by_date_range(self, test_app, headers, populated):
         ids = self.ids(test_app, headers, from_date='2024-02-01T00:00:00Z', to_date='2024-02-28T00:00:00Z')
         assert ids == [populated['other_car']['id'], populated['feb_tax']['id']]
 
     def test_filters_combine(self, test_app, headers, populated):
         ids = self.ids(
-            test_app, headers, car_id=populated['car']['id'], category='tires', from_date='2024-02-01T00:00:00Z'
+            test_app,
+            headers,
+            car_id=populated['car']['id'],
+            category='tires',
+            kind='expense',
+            from_date='2024-02-01T00:00:00Z',
         )
         assert ids == [populated['mar_tires']['id']]
 
@@ -197,5 +223,5 @@ class TestListFilters:
 
     def test_limit_and_offset(self, test_app, headers, populated):
         assert self.ids(test_app, headers, limit=2, offset=1) == [
-            populated[key]['id'] for key in ('other_car', 'feb_tax')
+            populated[key]['id'] for key in ('mar_tires', 'other_car')
         ]

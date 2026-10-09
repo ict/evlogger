@@ -4,7 +4,7 @@ import bson
 
 import app.core
 from app.core.db import AsyncIOMotorClient
-from app.models.expenses import Expense, ExpenseCategory, ExpenseInDb
+from app.models.expenses import Expense, ExpenseCategory, ExpenseInDb, ExpenseKind
 from app.operations.cars import get_owned_car
 from app.operations.crud_base import CRUDBase, dump_for_db, get_collection
 
@@ -35,6 +35,7 @@ class ExpenseCrud(CRUDBase[Expense, ExpenseInDb]):
         to_date: datetime | None = None,
         car_id: str | None = None,
         category: ExpenseCategory | None = None,
+        kind: ExpenseKind | None = None,
     ) -> list[ExpenseInDb]:
         filters: dict = {}
         if car_id is not None:
@@ -43,6 +44,11 @@ class ExpenseCrud(CRUDBase[Expense, ExpenseInDb]):
             filters['owner_id'] = owner_id
         if category is not None:
             filters['category'] = category.value
+        if kind == ExpenseKind.expense:
+            # entries stored before `kind` existed have no field and count as expenses
+            filters['kind'] = {'$ne': ExpenseKind.income.value}
+        elif kind is not None:
+            filters['kind'] = kind.value
         if from_date:
             filters.setdefault('date', {})['$gte'] = from_date
         if to_date:

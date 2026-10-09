@@ -26,7 +26,7 @@ const PROFILES = {
     // Tesla: no fixed service plan, cabin filter yearly, HU every two years
     maintenance: (y) => [['Cabin filter', 7900], ...(y % 2 === 1 ? [['HU / TÜV inspection', 15900]] : [])],
     summerTiresKm: 38000, tireSet: 118000, winterSet: 162000,
-    oneOff: [[3, 'tax', 12850, 'Registration & plates'], [9, 'accessories', 12900, 'All-weather floor mats'], [60, 'accessories', 24900, 'Mobile charging cable'], [420, 'accessories', 39900, 'Roof box']],
+    oneOff: [[3, 'tax', 12850, 'Registration & plates'], [9, 'accessories', 12900, 'All-weather floor mats'], [60, 'accessories', 24900, 'Mobile charging cable'], [420, 'accessories', 39900, 'Roof box'], [430, 'tires', 45000, 'Sold OEM 21" wheels', 'income']],
   },
   car2: {
     seed: 22, consumption: 18.5, commute: 26, weekend: [0, 70], tripEvery: 75, trip: [280, 520],
@@ -42,7 +42,7 @@ const PROFILES = {
     // Renault requires a yearly service for the battery warranty
     maintenance: (y) => [['Annual service', 18900 + y * 1500], ...(y === 2 ? [['HU / TÜV inspection', 14900], ['12V battery', 16900]] : [])],
     summerTiresKm: 40000, tireSet: 52000, winterSet: 68000,
-    oneOff: [[3, 'tax', 11900, 'Registration & plates'], [5, 'accessories', 98000, 'Wallbox incl. installation'], [30, 'accessories', 6900, 'Floor mats']],
+    oneOff: [[3, 'tax', 11900, 'Registration & plates'], [5, 'accessories', 98000, 'Wallbox incl. installation'], [30, 'accessories', 6900, 'Floor mats'], [900, 'insurance', 8600, 'Premium refund (no claims)', 'income']],
   },
 };
 
@@ -74,8 +74,8 @@ function simulateCar(car, p, ids) {
   let lastHour = 0;
 
   const at = (d, h) => { const x = new Date(d); x.setHours(h, rnd(0, 59), 0, 0); return x.toISOString(); };
-  const expense = (d, category, amount, note) => expenses.push({
-    id: `ex${ids.ex++}`, owner_id: 'demo', date: at(d, rnd(9, 18)), car_id: car.id, car_name: car.name, category, amount, note,
+  const expense = (d, category, amount, note, kind = 'expense') => expenses.push({
+    id: `ex${ids.ex++}`, owner_id: 'demo', date: at(d, rnd(9, 18)), car_id: car.id, car_name: car.name, category, kind, amount, note,
   });
   const charge = (d, hour, cpoId, target, type) => {
     // Keep charges of one day in chronological order so the odometer never goes backwards
@@ -94,9 +94,9 @@ function simulateCar(car, p, ids) {
     });
   };
 
-  p.oneOff.forEach(([days, category, amount, note]) => {
+  p.oneOff.forEach(([days, category, amount, note, kind]) => {
     const d = new Date(start); d.setDate(d.getDate() + days);
-    if (d <= end) expense(d, category, amount, note);
+    if (d <= end) expense(d, category, amount, note, kind);
   });
 
   for (let d = new Date(start), day = 0; d <= end; d.setDate(d.getDate() + 1), day++) {
@@ -122,7 +122,10 @@ function simulateCar(car, p, ids) {
       else expense(d, 'tires', rnd(4500, 6000), 'Tire swap (winter)');
     }
     if (m === 3 && dom === 8 && hasWinterSet) {
-      if (odo - lastTireChange > p.summerTiresKm) { expense(d, 'tires', p.tireSet, 'New summer tires incl. fitting'); lastTireChange = odo; }
+      if (odo - lastTireChange > p.summerTiresKm) {
+        expense(d, 'tires', p.tireSet, 'New summer tires incl. fitting'); lastTireChange = odo;
+        expense(d, 'tires', Math.round(p.tireSet * 0.15 / 100) * 100, 'Sold old summer tires', 'income');
+      }
       else expense(d, 'tires', rnd(4500, 6000), 'Tire swap (summer)');
     }
     if (rand() < 1 / 28) expense(d, 'cleaning', pick([1290, 1490, 1690, 1990]), 'Car wash');
@@ -248,6 +251,7 @@ export function makeMockApi() {
       let list = [...expenses];
       if (p.car_id) list = list.filter((e) => e.car_id === p.car_id);
       if (p.category) list = list.filter((e) => e.category === p.category);
+      if (p.kind) list = list.filter((e) => (e.kind || 'expense') === p.kind);
       if (p.from_date) list = list.filter((e) => new Date(e.date) >= new Date(p.from_date));
       if (p.to_date) list = list.filter((e) => new Date(e.date) <= new Date(p.to_date));
       list.sort((a, b) => new Date(b.date) - new Date(a.date));

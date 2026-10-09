@@ -5,18 +5,19 @@ import LineChart from '../components/charts/LineChart.jsx';
 import BarChart from '../components/charts/BarChart.jsx';
 import { CategoryChip } from '../components/icons.jsx';
 import { getTimeframeRange, fmtMoney, fmtMoney0, fmtPerKm, fmtPer100km, fmtMonths, fmtDay } from '../format.js';
-import { computeTco, expensesInRange, sumExpenses, categoryBreakdown } from '../costs.js';
+import { computeTco, expensesInRange, sumExpenses, sumIncome, categoryBreakdown, isIncome } from '../costs.js';
 
 const CPO_PALETTE = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#a855f7'];
 
 function TcoCard({ tco, car, incomplete }) {
-  const { retired, hasPurchase, charging, expenses, byCategory, capital, estimate, km, running, allIn, runningPerKm, allInPerKm, months, depreciationPerYear } = tco;
+  const { retired, hasPurchase, charging, expenses, income, byCategory, capital, estimate, km, running, allIn, runningPerKm, allInPerKm, months, depreciationPerYear } = tco;
   const perKm = (v) => (v == null ? '—' : fmtPer100km(v));
   const sub = (v) => (v == null ? '' : `${fmtPerKm(v)} €/km`);
   const rows = [
     ...(hasPurchase ? [[retired ? 'Depreciation (purchase − sale)' : 'Depreciation (estimated)', capital]] : []),
     ['Charging', charging],
     ['Other costs', expenses],
+    ...(income > 0 ? [['Income (sales, refunds)', -income]] : []),
   ];
   const total = hasPurchase ? allIn : running;
   return (
@@ -26,7 +27,7 @@ function TcoCard({ tco, car, incomplete }) {
       </div>
       <div className="tco-grid">
         <div>
-          <div className="tco-label">Running cost <span>charging + other</span></div>
+          <div className="tco-label">Running cost <span>charging + other − income</span></div>
           <div className="stat-value" style={{ color: 'var(--accent)' }}>{perKm(runningPerKm)}<span className="stat-unit">€ / 100 km</span></div>
           <div className="stat-sub">{sub(runningPerKm)}</div>
         </div>
@@ -86,7 +87,11 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
     () => expensesInRange(expenses, selectedCarId, getTimeframeRange(tf, fromDate, toDate)),
     [expenses, selectedCarId, tf, fromDate, toDate],
   );
-  const otherCosts = useMemo(() => ({ total: sumExpenses(rangeExpenses), byCategory: categoryBreakdown(rangeExpenses) }), [rangeExpenses]);
+  // Net of income (sold tires, refunds); category chips show costs only
+  const otherCosts = useMemo(() => {
+    const income = sumIncome(rangeExpenses);
+    return { total: sumExpenses(rangeExpenses) - income, income, count: rangeExpenses.filter((e) => !isIncome(e)).length, byCategory: categoryBreakdown(rangeExpenses) };
+  }, [rangeExpenses]);
   const tco = useMemo(() => (car ? computeTco(car, charges, expenses) : null), [car, charges, expenses]);
   const stats = useMemo(() => {
     const c = [...tfCharges].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -258,7 +263,10 @@ export default function DashboardView({ api, selectedCarId, cars, charges = [], 
             <div className="stat-card">
               <div className="stat-label">Other costs</div>
               <div className="stat-value">{fmtMoney(otherCosts.total)}<span className="stat-unit">€</span></div>
-              <div className="stat-sub">{rangeExpenses.length} expense{rangeExpenses.length !== 1 ? 's' : ''} in period</div>
+              <div className="stat-sub">
+                {otherCosts.count} expense{otherCosts.count !== 1 ? 's' : ''} in period
+                {otherCosts.income > 0 && <> · <span style={{ color: 'var(--green)' }}>−{fmtMoney(otherCosts.income)} € income</span></>}
+              </div>
               {otherCosts.byCategory.length > 0 && (
                 <div className="cost-cats">
                   {otherCosts.byCategory.map((c) => (

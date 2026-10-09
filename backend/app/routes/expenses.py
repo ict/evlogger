@@ -5,7 +5,7 @@ from fastapi.exceptions import HTTPException
 from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 
 from app.core.db import AsyncIOMotorClient, get_database
-from app.models.expenses import Expense, ExpenseCategory, ExpenseInDb
+from app.models.expenses import Expense, ExpenseCategory, ExpenseInDb, ExpenseKind
 from app.models.users import UserInDb
 from app.operations.expenses import ExpenseCrudOp
 from app.util.auth import get_current_active_user
@@ -24,10 +24,11 @@ async def list_expenses(
     from_date: datetime | None = None,
     to_date: datetime | None = None,
     category: ExpenseCategory | None = None,
+    kind: ExpenseKind | None = None,
     db: AsyncIOMotorClient = DBDepend,
     user: UserInDb = UserDepends,
 ) -> list[ExpenseInDb]:
-    return await ExpenseCrudOp.list(db, limit, offset, user.id, from_date, to_date, car_id, category)
+    return await ExpenseCrudOp.list(db, limit, offset, user.id, from_date, to_date, car_id, category, kind)
 
 
 @router.post('/', status_code=HTTP_201_CREATED)

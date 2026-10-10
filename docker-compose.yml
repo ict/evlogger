@@ -13,7 +13,7 @@ services:
       API_ROOT_PATH: /api
 
   mongo:
-    image: mongo:latest
+    image: mongo:9.0
     ports:
       - "27017:27017"
 

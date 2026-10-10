@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Same values as backend/mise.toml (dev only). Tests use an in-memory MongoDB, MONGODB_URL is overridden.
+      MONGODB_URL: mongodb://localhost:27017/chargelogger
+      API_SECRET_KEY: dev-only-insecure-key-never-use-in-production
+      API_ALGORITHM: HS256
+      API_ACCESS_TOKEN_EXPIRE_MINUTES: "129600"
+      # pymongo-inmemory has no generic Linux build for current MongoDB; pick the runner's distro.
+      PYMONGOIM__OPERATING_SYSTEM: ubuntu
+      PYMONGOIM__OS_VERSION: "24"
+      PYMONGOIM__MONGO_VERSION: "8.0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --locked
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run pytest -q tests/
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  images:
+    # Catches broken base image or Dockerfile updates; images are built for real on the private CI.
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -f ${{ matrix.component }}/docker/Dockerfile ${{ matrix.component }}

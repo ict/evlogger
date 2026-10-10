@@ -4,6 +4,10 @@
   Self-hosted tracker for EV charging sessions and the full cost of owning your cars.
 </p>
 
+<p align="center">
+  <a href="https://github.com/ict/evlogger/actions/workflows/ci.yml"><img src="https://github.com/ict/evlogger/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
+
 > [!WARNING]
 > **This is a purely vibecoded project.** Nearly all of the code was written by AI coding
 > assistants, with a human steering and testing it for personal use. It works for its author,

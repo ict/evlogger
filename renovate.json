@@ -1,0 +1,56 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 6am on monday"],
+  "minimumReleaseAge": "3 days",
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "One PR per week for backend runtime updates",
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "backend dependencies"
+    },
+    {
+      "description": "One PR per week for frontend runtime updates",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "frontend dependencies"
+    },
+    {
+      "description": "Dev tooling: merge automatically once CI is green",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["dependency-groups"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "backend dev tools",
+      "automerge": true
+    },
+    {
+      "description": "Dev tooling: merge automatically once CI is green",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "frontend dev tools",
+      "automerge": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true
+    },
+    {
+      "description": "MongoDB majors need a manual featureCompatibilityVersion step",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["mongo"],
+      "matchUpdateTypes": ["major"],
+      "prBodyNotes": [
+        "⚠️ MongoDB major upgrade: read the release notes, upgrade one major at a time and set `featureCompatibilityVersion` afterwards."
+      ]
+    }
+  ]
+}

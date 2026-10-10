@@ -12,7 +12,10 @@
 > putting it behind your own authentication or a VPN.
 
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="EVLogger dashboard with consumption, cost and per-CPO charts" width="900">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
+    <img src="docs/screenshots/dashboard.png" alt="EVLogger dashboard with consumption, cost and per-CPO charts" width="900">
+  </picture>
 </p>
 
 EVLogger records every charge (when, where, how much energy, what it cost) along with all other
@@ -33,6 +36,7 @@ car expenses, and turns that into statistics on your charging habits and total c
 - **Multi-user**: everyone sees only their own data; the first registered user becomes admin.
 - **API tokens**: long-lived personal tokens (`clk_…`) for scripts and integrations.
 - **Responsive**: the same UI works on a phone.
+- **Dark mode**: follows your system, or pick light/dark in the user menu.
 - **Demo mode**: optional "Try demo" button that runs entirely in the browser with fake data.
 
 ## Screenshots
@@ -43,10 +47,9 @@ car expenses, and turns that into statistics on your charging habits and total c
 | **Yearly trends** | **Charge Point Operators** |
 | <img src="docs/screenshots/trends.png" alt="Year-over-year trends" width="440"> | <img src="docs/screenshots/cpos.png" alt="CPO list with default prices" width="440"> |
 
-<p align="center">
-  <img src="docs/screenshots/mobile.png" alt="Dashboard on a phone" width="260"><br>
-  <sub>Dashboard on a phone</sub>
-</p>
+| **Dark mode** | **On a phone** |
+|---|---|
+| <img src="docs/screenshots/charges-dark.png" alt="Charge list in dark mode" width="440"> | <img src="docs/screenshots/mobile.png" alt="Dashboard on a phone" width="200"> <img src="docs/screenshots/mobile-dark.png" alt="Dashboard on a phone, dark" width="200"> |
 
 <sub>All screenshots show the built-in demo data.</sub>
 

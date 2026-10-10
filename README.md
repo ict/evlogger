@@ -1,81 +1,131 @@
-# EVLogger
+<h1 align="center">⚡ EVLogger</h1>
 
-A self-hosted tool for tracking EV charging sessions and the full cost of owning your cars. EVLogger records every charge — when, where, how much energy, and what it cost — along with other car expenses, and surfaces statistics to help you understand your charging habits and total cost of ownership over time.
+<p align="center">
+  Self-hosted tracker for EV charging sessions and the full cost of owning your cars.
+</p>
+
+> [!WARNING]
+> **This is a purely vibecoded project.** Nearly all of the code was written by AI coding
+> assistants, with a human steering and testing it for personal use. It works for its author,
+> but it has not been audited or reviewed line by line. Expect rough edges, read the code
+> before you trust it with anything important, and don't expose it to the internet without
+> putting it behind your own authentication or a VPN.
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="EVLogger dashboard with consumption, cost and per-CPO charts" width="900">
+</p>
+
+EVLogger records every charge (when, where, how much energy, what it cost) along with all other
+car expenses, and turns that into statistics on your charging habits and total cost of ownership.
 
 ## Features
 
-- **Multi-car support** – manage charging history for several vehicles independently
-- **Charge Point Operator (CPO) management** – store charger networks with default per-kWh prices
-- **Rich charge records** – date, odometer, kWh charged, total cost, AC/DC type, notes
-- **Expenses** – insurance, tax, tires, tolls & parking, cleaning, maintenance, accessories, subscriptions and more
-- **Total cost of ownership** – purchase and sale price per car, running and all-in cost per 100 km; retire sold cars
-- **Statistics** – monthly, yearly, and all-time breakdowns with cost and efficiency metrics
-- **CSV import** – bulk-import charging history from spreadsheet exports
-- **Multi-user** – each user sees only their own data; the first registered user becomes admin
-- **JWT authentication** – tokens persist in browser cookies for a seamless experience
+- **Multi-car**: separate history, stats and cost of ownership for each vehicle.
+- **Charge records**: date, odometer, kWh, total cost, AC/DC, state of charge, notes.
+- **Charge Point Operators (CPOs)**: store charger networks with a default per-kWh price,
+  so a charge without a price gets one filled in.
+- **Expenses and income**: insurance, tax, tires, tolls & parking, cleaning, maintenance,
+  accessories, subscriptions; income (sold parts, refunds) reduces your cost.
+- **Total cost of ownership**: purchase and sale price per car, running and all-in cost
+  per 100 km, retire sold cars.
+- **Statistics**: dashboard over any time range, plus year-over-year trends.
+- **CSV import**: bring your existing charging spreadsheet.
+- **Multi-user**: everyone sees only their own data; the first registered user becomes admin.
+- **API tokens**: long-lived personal tokens (`clk_…`) for scripts and integrations.
+- **Responsive**: the same UI works on a phone.
+- **Demo mode**: optional "Try demo" button that runs entirely in the browser with fake data.
 
-## Repository Structure
+## Screenshots
 
-```
-evlogger/
-├── backend/          # FastAPI + MongoDB API server
-├── frontend/         # React (Vite) SPA, served by Caddy + reverse-proxies /api
-└── docker-compose.yml
-```
+| Charges | Expenses |
+|---|---|
+| <img src="docs/screenshots/charges.png" alt="Charge list" width="440"> | <img src="docs/screenshots/expenses.png" alt="Expense list" width="440"> |
+| **Yearly trends** | **Charge Point Operators** |
+| <img src="docs/screenshots/trends.png" alt="Year-over-year trends" width="440"> | <img src="docs/screenshots/cpos.png" alt="CPO list with default prices" width="440"> |
 
-See [`backend/README.md`](backend/README.md) and [`frontend/README.md`](frontend/README.md) for component-specific documentation.
+<p align="center">
+  <img src="docs/screenshots/mobile.png" alt="Dashboard on a phone" width="260"><br>
+  <sub>Dashboard on a phone</sub>
+</p>
 
-## Quick Start with Docker
+<sub>All screenshots show the built-in demo data.</sub>
 
-The easiest way to run the full stack is with Docker Compose.
+## Quick start (Docker Compose)
 
 ```bash
+git clone https://github.com/ict/evlogger.git && cd evlogger
 echo "API_SECRET_KEY=$(openssl rand -hex 32)" > .env
-docker compose up
+docker compose up -d
 ```
+
+Then open http://localhost:8080, register an account (the first one becomes admin), add a car
+and at least one CPO (e.g. your home wallbox), and start logging charges or import a CSV.
 
 `API_SECRET_KEY` signs login tokens. Compose refuses to start without it, and the backend
 rejects known example keys and keys shorter than 32 characters.
 
-This starts three services:
+| Service        | URL                            | Notes                                          |
+|----------------|--------------------------------|------------------------------------------------|
+| Frontend + API | http://localhost:8080          | Caddy serves the SPA and proxies `/api/*`      |
+| API docs       | http://localhost:8080/api/docs | Swagger UI                                     |
+| MongoDB        | localhost:27017                | Published for development; drop the port mapping in production |
 
-| Service          | URL                          | Description                          |
-|------------------|------------------------------|--------------------------------------|
-| Frontend + API   | http://localhost:8080        | React SPA (Caddy proxies `/api/*`)   |
-| MongoDB          | localhost:27017              | Database                             |
-
-> The API docs (Swagger UI) are available at http://localhost:8080/api/docs.
-> The API container is internal-only — reach it through the Caddy proxy.
-
-### First steps
-
-1. Open http://localhost:8080 in your browser.
-2. Register a new account — the first user automatically becomes admin.
-3. Add a car and at least one CPO (e.g. your home wallbox).
-4. Start logging charges, or import existing data via CSV.
-
-## Environment Variables
-
-These can be set in `docker-compose.yml` or in a `.env` file when running locally.
+## Configuration
 
 ### Backend
 
-| Variable                          | Default                              | Description                        |
-|-----------------------------------|--------------------------------------|------------------------------------|
-| `MONGODB_URL`                     | `mongodb://mongo:27017/chargelogger` | MongoDB connection string          |
-| `API_SECRET_KEY`                  | *(must be set)*                      | JWT signing secret, ≥ 32 chars     |
-| `API_ALGORITHM`                   | `HS256`                              | JWT algorithm                      |
-| `API_ACCESS_TOKEN_EXPIRE_MINUTES` | `129600` (90 days)                   | Token lifetime                     |
+| Variable                          | Default                              | Description                    |
+|-----------------------------------|--------------------------------------|--------------------------------|
+| `MONGODB_URL`                     | `mongodb://mongo:27017/chargelogger` | MongoDB connection string      |
+| `API_SECRET_KEY`                  | *(must be set)*                      | JWT signing secret, ≥ 32 chars |
+| `API_ALGORITHM`                   | `HS256`                              | JWT algorithm                  |
+| `API_ACCESS_TOKEN_EXPIRE_MINUTES` | `129600` (90 days)                   | Login token lifetime           |
+| `API_ROOT_PATH`                   | `/api` in compose                    | Path prefix behind the proxy   |
 
 ### Frontend
 
-The frontend is a static bundle. It calls the API at the relative path `/api`,
-which Caddy reverse-proxies to the backend container.
+The frontend is a static bundle that calls the API at the relative path `/api`.
 
-| Variable             | Default | Description                                                                 |
-|----------------------|---------|-----------------------------------------------------------------------------|
-| `VITE_DEMO_ENABLED`  | `false` | Set to `true` to show the "Try demo" button on the login screen. Configure in `frontend/.env.local` for local dev or pass at build time for production. |
+| Variable            | Default | Description                                                    |
+|---------------------|---------|----------------------------------------------------------------|
+| `VITE_DEMO_ENABLED` | `false` | Show the "Try demo" button. Set in `frontend/.env.local` for dev or at build time. |
 
+## API and integrations
+
+Everything the UI does goes through a REST API (FastAPI, docs at `/api/docs`). Create a
+personal token under **user menu → API tokens** and send it as `Authorization: Bearer clk_…`.
+
+- `GET /charge/stats?from_date=…&to_date=…` returns count, kWh and cost in total and per car,
+  handy for dashboards.
+- [**ha-chargelogger**](https://github.com/ict/ha-chargelogger) is a Home Assistant integration
+  with monthly charging sensors and one-tap expense buttons (e.g. "car wash").
+
+## Development
+
+```
+evlogger/
+├── backend/          # FastAPI + Motor (MongoDB) API, see backend/README.md
+├── frontend/         # React (Vite) SPA, see frontend/README.md
+├── docs/screenshots/ # images for this README
+└── docker-compose.yml
+```
+
+Backend tooling uses [mise](https://mise.jdx.dev) and [uv](https://docs.astral.sh/uv/):
+
+```bash
+cd backend
+uv sync
+mise run test     # pytest with an in-memory MongoDB, no external DB needed
+mise run lint     # ruff
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+VITE_DEMO_ENABLED=true npm run dev   # try the UI without a backend
+```
 
 ## License
 

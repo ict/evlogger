@@ -17,7 +17,7 @@ A self-hosted tool for tracking EV charging sessions and the full cost of owning
 ## Repository Structure
 
 ```
-chargelogger/
+evlogger/
 ├── backend/          # FastAPI + MongoDB API server
 ├── frontend/         # React (Vite) SPA, served by Caddy + reverse-proxies /api
 └── docker-compose.yml
@@ -30,8 +30,12 @@ See [`backend/README.md`](backend/README.md) and [`frontend/README.md`](frontend
 The easiest way to run the full stack is with Docker Compose.
 
 ```bash
-docker-compose up
+echo "API_SECRET_KEY=$(openssl rand -hex 32)" > .env
+docker compose up
 ```
+
+`API_SECRET_KEY` signs login tokens. Compose refuses to start without it, and the backend
+rejects known example keys and keys shorter than 32 characters.
 
 This starts three services:
 
@@ -59,7 +63,7 @@ These can be set in `docker-compose.yml` or in a `.env` file when running locall
 | Variable                          | Default                              | Description                        |
 |-----------------------------------|--------------------------------------|------------------------------------|
 | `MONGODB_URL`                     | `mongodb://mongo:27017/chargelogger` | MongoDB connection string          |
-| `API_SECRET_KEY`                  | *(must be set)*                      | JWT signing secret — change this!  |
+| `API_SECRET_KEY`                  | *(must be set)*                      | JWT signing secret, ≥ 32 chars     |
 | `API_ALGORITHM`                   | `HS256`                              | JWT algorithm                      |
 | `API_ACCESS_TOKEN_EXPIRE_MINUTES` | `129600` (90 days)                   | Token lifetime                     |
 
@@ -72,4 +76,7 @@ which Caddy reverse-proxies to the backend container.
 |----------------------|---------|-----------------------------------------------------------------------------|
 | `VITE_DEMO_ENABLED`  | `false` | Set to `true` to show the "Try demo" button on the login screen. Configure in `frontend/.env.local` for local dev or pass at build time for production. |
 
-> **Security note:** The `API_SECRET_KEY` in `docker-compose.yml` is a public example value. Always replace it with a random secret before exposing the service to a network.
+
+## License
+
+[MIT](LICENSE)

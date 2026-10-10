@@ -1,0 +1,46 @@
+date,car_odometer,kwh_charged,price_total,charge_type,cpo_name,note
+05.01.2023,1200,"6,85","3,08€",AC,CityPower,
+10.01.2023,1374,"9,48","2,84€",AC,Wallbox,charger slow
+13.01.2023,1736,"7,01","2,10€",AC,Wallbox,
+18.01.2023,2054,"25,08","11,29€",AC,CityPower,charger slow
+26.01.2023,2226,"15,46","4,64€",AC,Wallbox,
+30.01.2023,2643,"15,45","4,63€",AC,Wallbox,
+06.02.2023,2755,"9,29","2,79€",AC,Wallbox,
+12.02.2023,2837,"24,23","16,72€",DC,FastCharge Highway,road trip
+15.02.2023,3179,"27,37","8,21€",AC,Wallbox,
+20.02.2023,3599,"28,48","8,54€",AC,Wallbox,
+23.02.2023,3778,"18,92","11,16€",DC,MegaVolt,road trip
+02.03.2023,3921,"13,12","3,94€",AC,Wallbox,
+05.03.2023,4292,"24,16","10,87€",AC,CityPower,
+09.03.2023,4588,"39,64","11,89€",AC,Wallbox,charger slow
+14.03.2023,4998,"32,12","9,64€",AC,Wallbox,
+19.03.2023,5074,"19,64","13,55€",DC,FastCharge Highway,
+24.03.2023,5424,"16,70","9,85€",DC,MegaVolt,road trip
+01.04.2023,5813,"15,01","4,50€",AC,Wallbox,
+07.04.2023,6172,"25,84","7,75€",AC,Wallbox,
+12.04.2023,6302,"9,09","4,09€",AC,CityPower,
+15.04.2023,6440,"32,93","14,82€",AC,CityPower,road trip
+18.04.2023,6697,"39,87","11,96€",AC,Wallbox,charger slow
+24.04.2023,7040,"6,39","3,77€",DC,MegaVolt,
+30.04.2023,7428,"15,98","4,79€",AC,Wallbox,
+09.05.2023,7489,"35,78","0,00€",AC,Supermarket Free,
+13.05.2023,7808,"35,60","21,00€",DC,MegaVolt,
+18.05.2023,7946,"11,49","3,45€",AC,Wallbox,charger slow
+20.05.2023,8312,"6,66","2,00€",AC,Wallbox,
+26.05.2023,8494,"35,85","10,76€",AC,Wallbox,
+29.05.2023,8802,"39,25","27,08€",DC,FastCharge Highway,charger slow
+02.06.2023,8927,"38,19","17,19€",AC,CityPower,
+08.06.2023,9257,"20,39","12,03€",DC,MegaVolt,
+13.06.2023,9476,"28,84","8,65€",AC,Wallbox,
+22.06.2023,9800,"14,43","4,33€",AC,Wallbox,
+29.06.2023,9870,"13,82","6,22€",AC,CityPower,
+01.07.2023,9966,"8,00","5,52€",DC,FastCharge Highway,
+03.07.2023,10195,"14,09","4,23€",AC,Wallbox,road trip
+08.07.2023,10531,"37,81","11,34€",AC,Wallbox,charger slow
+17.07.2023,10715,"33,45","23,08€",DC,FastCharge Highway,
+20.07.2023,10824,"18,05","8,12€",AC,CityPower,road trip
+29.07.2023,10911,"39,46","27,23€",DC,FastCharge Highway,
+31.07.2023,11177,"33,22","22,92€",DC,FastCharge Highway,
+05.08.2023,11335,"21,25","6,38€",AC,Wallbox,road trip
+09.08.2023,11537,"35,73","10,72€",AC,Wallbox,
+18.08.2023,11878,"28,17","8,45€",AC,Wallbox,charger slow

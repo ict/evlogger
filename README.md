@@ -20,7 +20,6 @@ A self-hosted tool for tracking EV charging sessions and the full cost of owning
 chargelogger/
 ├── backend/          # FastAPI + MongoDB API server
 ├── frontend/         # React (Vite) SPA, served by Caddy + reverse-proxies /api
-├── util/             # Helper scripts (fill example data, etc.)
 └── docker-compose.yml
 ```
 

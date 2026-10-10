@@ -560,7 +560,7 @@ def test_csv_import(test_app):
     car_id = response.json()['id']
 
     # Push the CSV
-    with TEST_DATA_DIR.joinpath('e208.csv').open('rb') as f:
+    with TEST_DATA_DIR.joinpath('example_charges.csv').open('rb') as f:
         response = test_app.post(
             '/charge/csv_import',
             headers={'Authorization': f'Bearer {token}'},

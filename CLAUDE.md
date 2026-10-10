@@ -35,7 +35,7 @@ mise run test            # full pytest suite
 pytest tests/test_charges.py::test_name   # single test
 ```
 
-Tests use an in-memory Mongo via `conftest.py` — no external DB needed. `mise.toml` sets `MONGODB_URL`, `API_SECRET_KEY`, etc. for local dev (the secret there is a public example).
+Tests use an in-memory Mongo via `conftest.py` — no external DB needed. `mise.toml` sets `MONGODB_URL`, `API_SECRET_KEY`, etc. for local dev (the secret there is a dev-only placeholder; production keys must be ≥ 32 chars and not a known example, enforced in `app/core/config.py`).
 
 ### Frontend (`cd frontend`)
 

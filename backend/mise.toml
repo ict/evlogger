@@ -4,7 +4,7 @@ min_version = "2024.9.5"
 # Use the project name derived from the current directory
 PROJECT_NAME = "evlogger"
 MONGODB_URL ="mongodb://mongo:27017/chargelogger"
-API_SECRET_KEY ="09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+API_SECRET_KEY ="dev-only-insecure-key-never-use-in-production" # local dev/tests only
 API_ALGORITHM ="HS256"
 API_ACCESS_TOKEN_EXPIRE_MINUTES ="129600" # 90 days
 

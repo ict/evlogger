@@ -1,3 +1,5 @@
+# Local quick start: http://localhost:8080, reachable from this machine only.
+# For a real server with HTTPS see deploy/.
 services:
   api:
     build:
@@ -11,11 +13,18 @@ services:
       API_ALGORITHM: HS256
       API_ACCESS_TOKEN_EXPIRE_MINUTES: 129600 # 90 days
       API_ROOT_PATH: /api
+    depends_on:
+      - mongo
+    restart: unless-stopped
 
   mongo:
     image: mongo:9.0
-    ports:
-      - "27017:27017"
+    # No authentication: keep it off the network. Uncomment to inspect it locally with mongosh/Compass.
+    # ports:
+    #   - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
 
   frontend:
     build:
@@ -25,3 +34,7 @@ services:
       - "127.0.0.1:8080:80"
     depends_on:
       - api
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

@@ -1,0 +1,20 @@
+# Public entry point. Caddy gets a certificate for EVLOGGER_DOMAIN automatically (ports 80/443 must
+# be reachable for the ACME challenge, or configure a DNS challenge).
+{$EVLOGGER_DOMAIN} {
+	encode zstd gzip
+
+	# Only allow the networks in EVLOGGER_ALLOWED_IPS (default: private/LAN ranges).
+	# EVLogger has no rate limiting or 2FA; keep it off the open internet or put a VPN in front.
+	@outside not remote_ip {$EVLOGGER_ALLOWED_IPS}
+	respond @outside "Forbidden" 403
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		-Server
+	}
+
+	# The frontend container serves the app and proxies /api to the backend.
+	reverse_proxy frontend:80
+}

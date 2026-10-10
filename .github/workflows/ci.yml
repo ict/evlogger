@@ -63,3 +63,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker build -f ${{ matrix.component }}/docker/Dockerfile ${{ matrix.component }}
+
+  compose:
+    runs-on: ubuntu-24.04
+    env:
+      API_SECRET_KEY: ci-only-validation-key-0123456789abcdef
+      EVLOGGER_DOMAIN: evlogger.example.com
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose config -q
+      - run: docker compose -f deploy/docker-compose.yml config -q
+      - run: docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" -e EVLOGGER_DOMAIN -e EVLOGGER_ALLOWED_IPS=private_ranges caddy:2 caddy validate --config /etc/caddy/Caddyfile

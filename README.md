@@ -83,7 +83,46 @@ rejects known example keys and keys shorter than 32 characters.
 |----------------|--------------------------------|------------------------------------------------|
 | Frontend + API | http://localhost:8080          | Caddy serves the SPA and proxies `/api/*`      |
 | API docs       | http://localhost:8080/api/docs | Swagger UI                                     |
-| MongoDB        | localhost:27017                | Published for development; drop the port mapping in production |
+| MongoDB        | internal only                  | Data lives in the `mongo_data` volume; uncomment the port in the compose file to inspect it |
+
+This setup listens on `localhost` only and has no HTTPS. To run EVLogger on a server, use `deploy/`.
+
+## Running on a server
+
+[`deploy/`](deploy/) runs EVLogger behind [Caddy](https://caddyserver.com) with automatic HTTPS:
+
+```bash
+cd deploy
+cp .env.example .env   # set EVLOGGER_DOMAIN and API_SECRET_KEY
+docker compose up -d --build
+```
+
+- Only Caddy publishes ports (80/443). The API and MongoDB are reachable only inside the compose network.
+- Caddy fetches a certificate for `EVLOGGER_DOMAIN`, so DNS must point at the server and ports 80/443 must be
+  reachable for the ACME challenge.
+- **Access is limited to private (LAN) addresses by default.** EVLogger has no rate limiting or two-factor login,
+  so don't open it to the whole internet. Use a VPN and add its subnet to `EVLOGGER_ALLOWED_IPS`, e.g.
+  `EVLOGGER_ALLOWED_IPS="private_ranges 10.8.0.0/24"`. The check relies on Docker passing the real client IP to
+  Caddy, which is the default on Linux. If you put another proxy in front, configure Caddy's `trusted_proxies`.
+- Back up the `mongo_data` volume, e.g. with `docker compose exec mongo mongodump --archive --gzip > evlogger.archive.gz`.
+- MongoDB is pinned to a major version. Upgrade one major at a time and raise `featureCompatibilityVersion`
+  afterwards, as described in MongoDB's release notes.
+
+### With an existing reverse proxy
+
+If you already run Caddy on the host, use the quick start compose file from the repository root (it publishes the
+frontend on `127.0.0.1:8080` only) and add a site block to your Caddyfile:
+
+```caddyfile
+evlogger.example.com {
+	@outside not remote_ip private_ranges
+	respond @outside 403
+
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+Any other reverse proxy works the same way: send all traffic for the hostname to the frontend on port 8080.
 
 ## Configuration
 
@@ -121,8 +160,9 @@ personal token under **user menu → API tokens** and send it as `Authorization:
 evlogger/
 ├── backend/          # FastAPI + Motor (MongoDB) API, see backend/README.md
 ├── frontend/         # React (Vite) SPA, see frontend/README.md
+├── deploy/           # server setup: Caddy with HTTPS, see "Running on a server"
 ├── docs/screenshots/ # images for this README
-└── docker-compose.yml
+└── docker-compose.yml # local quick start
 ```
 
 Backend tooling uses [mise](https://mise.jdx.dev) and [uv](https://docs.astral.sh/uv/):

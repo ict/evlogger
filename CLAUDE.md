@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 EVLogger is a self-hosted EV charge and cost-of-ownership tracker split into two top-level apps:
 
 - **`backend/`** — FastAPI + Motor (async MongoDB) REST API. Entry point is [backend/app/main.py](backend/app/main.py); routers under `app/routes/` are mounted at `/car`, `/cpo`, `/charge`, plus `/users/*`. JWT auth (python-jose + bcrypt) with first-registered-user-becomes-admin. The API also supports long-lived API tokens (LLATs) — see `app/models/users.py` and `app/operations/users.py`.
-- **`frontend/`** — React 18 SPA built with Vite. Single-file root [frontend/src/App.jsx](frontend/src/App.jsx) holds top-level state (auth, selected car, cached charges) and routes between four views in `src/views/`. All API calls go through `src/api.js`; `src/mockApi.js` powers the demo mode (login screen "Try demo" → no backend required). Colors are CSS custom properties in `src/styles.css` with a `:root[data-theme="dark"]` override (`src/theme.js` handles system/light/dark); use tokens, not hex values. Chart.js options may use `'var(--x)'` strings, which `ChartCanvas` resolves and re-renders on theme change.
+- **`frontend/`** — React 18 SPA built with Vite. Single-file root [frontend/src/App.jsx](frontend/src/App.jsx) holds top-level state (auth, selected car, cached charges) and routes between four views in `src/views/`. All API calls go through `src/api.js`; `src/mockApi.js` powers the demo mode (login screen "Try demo" → no backend required; the button only renders when the build has `VITE_DEMO_ENABLED=true`). Colors are CSS custom properties in `src/styles.css` with a `:root[data-theme="dark"]` override (`src/theme.js` handles system/light/dark); use tokens, not hex values. Chart.js options may use `'var(--x)'` strings, which `ChartCanvas` resolves and re-renders on theme change.
 - **`docker-compose.yml`** — local quick start: `api` and `mongo` internal-only (data in the `mongo_data` volume), `frontend` (Caddy on `127.0.0.1:8080`). **`deploy/`** is the server variant: a public Caddy with automatic HTTPS and an IP allowlist in front of the same three services. Caddy reverse-proxies `/api/*` to the backend container so UI and API share one origin (see [frontend/Caddyfile](frontend/Caddyfile)).
 
 ### Backend layering
@@ -21,6 +21,7 @@ Charge writes go through `_check_plausible` ([backend/app/operations/charging.py
 ### Frontend conventions
 
 - Auth + base URL persist in `localStorage` under `cl_auth`. `apiClient` is rebuilt whenever auth changes; in demo mode the same shape is satisfied by `mockApi`.
+- Each tab has its own URL path (`TAB_PATHS` in App.jsx, dashboard at `/`) via the History API — no router library. Unknown paths and `/admin` for non-admins fall back to `/`.
 - 401 from the API triggers logout (see `loadCars` in App.jsx).
 - Charges are loaded once into App-level state (`limit: 500`) and shared across `ChargesView` and `YearlyTrendsView`. `DashboardView` does its own range-filtered fetches via `getCharges({ from_date, to_date })`.
 

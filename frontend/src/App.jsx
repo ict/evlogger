@@ -19,6 +19,13 @@ import ToastContainer from './components/ToastContainer.jsx';
 const API_BASE = '/api';
 const THEME_LABELS = { system: 'System', light: 'Light', dark: 'Dark' };
 
+// tab id <-> URL path; dashboard lives at the root
+const TAB_PATHS = { dashboard: '/', charges: '/charges', expenses: '/expenses', trends: '/trends', cpos: '/cpos', admin: '/admin' };
+const tabFromPath = (path) => {
+  const clean = path.replace(/\/+$/, '') || '/';
+  return Object.keys(TAB_PATHS).find((id) => TAB_PATHS[id] === clean) || 'dashboard';
+};
+
 const safeStorage = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
@@ -32,7 +39,7 @@ export default function App() {
   const [dashTf, setDashTf] = useState(() => safeStorage.get('cl_dashTf') || '3M');
   const [dashFrom, setDashFrom] = useState(() => safeStorage.get('cl_dashFrom') || '');
   const [dashTo, setDashTo] = useState(() => safeStorage.get('cl_dashTo') || '');
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTabState] = useState(() => tabFromPath(window.location.pathname));
   const { pref: themePref } = useTheme();
   const [cars, setCars] = useState([]);
   const [selectedCarId, setSelectedCarId] = useState(() => safeStorage.get('cl_carId') || '');
@@ -64,6 +71,30 @@ export default function App() {
       setApiClient(makeApi(auth.baseUrl || API_BASE, auth.token));
     }
   }, [auth]);
+
+  const setTab = useCallback((id) => {
+    setTabState(id);
+    if (window.location.pathname !== TAB_PATHS[id]) window.history.pushState(null, '', TAB_PATHS[id]);
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => {
+      const id = tabFromPath(window.location.pathname);
+      if (window.location.pathname !== TAB_PATHS[id]) window.history.replaceState(null, '', TAB_PATHS[id]);
+      setTabState(id);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // normalize unknown paths and the admin URL for non-admins back to the dashboard
+  const isAdmin = !!auth?.user?.is_admin;
+  useEffect(() => {
+    if (!auth) return;
+    if (tab === 'admin' && !isAdmin) setTabState('dashboard');
+    const want = TAB_PATHS[tab === 'admin' && !isAdmin ? 'dashboard' : tab];
+    if (window.location.pathname !== want) window.history.replaceState(null, '', want);
+  }, [auth, tab, isAdmin]);
 
   const toast = useCallback((msg, type = 'success') => {
     const id = Date.now() + Math.random();

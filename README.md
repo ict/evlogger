@@ -47,9 +47,17 @@ car expenses, and turns that into statistics on your charging habits and total c
 | **Yearly trends** | **Charge Point Operators** |
 | <img src="docs/screenshots/trends.png" alt="Year-over-year trends" width="440"> | <img src="docs/screenshots/cpos.png" alt="CPO list with default prices" width="440"> |
 
-| **Dark mode** | **On a phone** |
-|---|---|
-| <img src="docs/screenshots/charges-dark.png" alt="Charge list in dark mode" width="440"> | <img src="docs/screenshots/mobile.png" alt="Dashboard on a phone" width="200"> <img src="docs/screenshots/mobile-dark.png" alt="Dashboard on a phone, dark" width="200"> |
+<p align="center">
+  <img src="docs/screenshots/charges-dark.png" alt="Charge list in dark mode" width="900"><br>
+  <sub>Dark mode</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mobile.png" alt="Dashboard on a phone" width="240">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/mobile-dark.png" alt="Dashboard on a phone, dark mode" width="240"><br>
+  <sub>On a phone, light and dark</sub>
+</p>
 
 <sub>All screenshots show the built-in demo data.</sub>
 

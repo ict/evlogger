@@ -88,3 +88,22 @@ class ChargeSubmission(Charge):
             msg = 'Either car_odometer or car_km_driven must be set'
             raise ValueError(msg)
         return self
+
+
+class ChargeStatsBucket(BaseModel):
+    count: int
+    kwh_charged: int = Field(..., description='Energy charged in 1/100s of a kWh')
+    price_total: int = Field(..., description='Cost in 1/100s of currency; charges without a price count as 0')
+    charges_without_price: int = Field(..., description='Number of charges whose price_total is unset')
+
+
+class CarChargeStats(ChargeStatsBucket):
+    car_id: str
+    car_name: str | None = None
+
+
+class ChargeStats(BaseModel):
+    from_date: datetime.datetime | None = None
+    to_date: datetime.datetime | None = None
+    total: ChargeStatsBucket
+    per_car: list[CarChargeStats]

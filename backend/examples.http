@@ -64,6 +64,10 @@ http://127.0.0.1:8000/charge?limit=1000
 http://127.0.0.1:8000/charge?timespan=7d
 ###
 
+# Charge statistics (kWh / cost in total and per car)
+http://127.0.0.1:8000/charge/stats?from_date=2026-10-01T00:00:00Z&to_date=2026-10-31T23:59:59Z
+###
+
 # Change a charge
 PUT http://127.0.0.1:8000/charge/RvBygrkCRCAVQLwSto4nEz
 Content-Type: application/json

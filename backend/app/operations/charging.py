@@ -12,7 +12,15 @@ from pydantic import ValidationError
 import app.core
 from app.core.config import COLLECTION_CARS, COLLECTION_CHARGES, COLLECTION_CPOS
 from app.core.db import AsyncIOMotorClient
-from app.models.charging import CPO, CarInDb, ChargeInDb, ChargeSubmission
+from app.models.charging import (
+    CPO,
+    CarChargeStats,
+    CarInDb,
+    ChargeInDb,
+    ChargeStats,
+    ChargeStatsBucket,
+    ChargeSubmission,
+)
 from app.operations.cars import get_owned_car
 from app.operations.crud_base import CPOCrud, CRUDBase, get_collection
 from app.util.timeparse import timeparse
@@ -135,6 +143,65 @@ class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
             entry['id'] = str(entry['_id'])
             results.append(ChargeInDb(**entry))
         return results
+
+    async def stats(
+        self,
+        db: AsyncIOMotorClient,
+        owner_id: str,
+        from_date: datetime | None = None,
+        to_date: datetime | None = None,
+        car_id: str | None = None,
+    ) -> ChargeStats:
+        """
+        Aggregate charge count, energy and cost per car (and in total) inside MongoDB.
+        Date bounds are inclusive on both ends, like in `list`. A missing price_total counts as 0 cost
+        (same as the frontend, see frontend/src/costs.js) and is reported in `charges_without_price`.
+        """
+        match: dict = {'owner_id': owner_id}
+        if car_id is not None:
+            match['car_id'] = car_id
+        if from_date or to_date:
+            match['date'] = {}
+            if from_date:
+                match['date']['$gte'] = from_date
+            if to_date:
+                match['date']['$lte'] = to_date
+        pipeline = [
+            {'$match': match},
+            {'$sort': {'date': 1}},
+            {
+                '$group': {
+                    '_id': '$car_id',
+                    'car_name': {'$last': '$car_name'},
+                    'count': {'$sum': 1},
+                    'kwh_charged': {'$sum': '$kwh_charged'},
+                    'price_total': {'$sum': {'$ifNull': ['$price_total', 0]}},
+                    'charges_without_price': {
+                        '$sum': {'$cond': [{'$eq': [{'$ifNull': ['$price_total', None]}, None]}, 1, 0]}
+                    },
+                }
+            },
+            {'$sort': {'car_name': 1, '_id': 1}},
+        ]
+        per_car: list[CarChargeStats] = []
+        async for row in get_collection(db, self.collection).aggregate(pipeline):
+            per_car.append(
+                CarChargeStats(
+                    car_id=row['_id'],
+                    car_name=row.get('car_name'),
+                    count=int(row['count']),
+                    kwh_charged=int(row['kwh_charged']),
+                    price_total=int(row['price_total']),
+                    charges_without_price=int(row['charges_without_price']),
+                )
+            )
+        total = ChargeStatsBucket(
+            count=sum(c.count for c in per_car),
+            kwh_charged=sum(c.kwh_charged for c in per_car),
+            price_total=sum(c.price_total for c in per_car),
+            charges_without_price=sum(c.charges_without_price for c in per_car),
+        )
+        return ChargeStats(from_date=from_date, to_date=to_date, total=total, per_car=per_car)
 
     async def update_by_id(
         self, db: AsyncIOMotorClient, by_id: str, new_item: ChargeSubmission, owner_id: str | None = None

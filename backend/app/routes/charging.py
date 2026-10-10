@@ -11,7 +11,7 @@ from starlette.status import (
 )
 
 from app.core.db import AsyncIOMotorClient, get_database
-from app.models.charging import CarInDb, ChargeInDb, ChargeSubmission
+from app.models.charging import CarInDb, ChargeInDb, ChargeStats, ChargeSubmission
 from app.models.helpers import SimpleActionResult
 from app.models.users import UserInDb
 from app.operations.cars import CarCRUD
@@ -39,6 +39,18 @@ async def list_charges(
     except ValueError as err:
         raise HTTPException(HTTP_406_NOT_ACCEPTABLE, str(err)) from None
     return charges
+
+
+@router.get('/stats')
+async def charge_stats(
+    from_date: datetime | None = None,
+    to_date: datetime | None = None,
+    car_id: str | None = None,
+    db: AsyncIOMotorClient = DBDepend,
+    user: UserInDb = UserDepends,
+) -> ChargeStats:
+    """Charge count, kWh and cost in total and per car (from_date/to_date inclusive, no dates = all time)"""
+    return await ChargeCrudOp.stats(db, user.id, from_date, to_date, car_id)
 
 
 @router.post('/', status_code=HTTP_201_CREATED)

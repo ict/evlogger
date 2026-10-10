@@ -105,6 +105,7 @@ The interactive Swagger UI is served at `/docs` when the server is running.
 | Method | Path                    | Description                                         |
 |--------|-------------------------|-----------------------------------------------------|
 | GET    | `/charge`               | List charges (supports `limit`, `offset`, `timespan`, `from_date`, `to_date`) |
+| GET    | `/charge/stats`         | Count, kWh and cost in total and per car (`from_date`, `to_date`, `car_id`) |
 | POST   | `/charge`               | Create a charge record                              |
 | GET    | `/charge/{id}`          | Get a charge by ID                                  |
 | PUT    | `/charge/{id}`          | Update a charge                                     |

@@ -32,9 +32,7 @@ def get_password_hash(password):
 def authenticate_user(user: UserInDb, password: str) -> bool:
     if not user:
         return False
-    if not verify_password(password, user.password_hash):
-        return False
-    return True
+    return verify_password(password, user.password_hash)
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -72,7 +70,7 @@ async def _resolve_api_token(token: str, db: AsyncIOMotorClient) -> User | None:
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], db: AsyncIOMotorClient = Depends(get_database)
+    token: Annotated[str, Depends(oauth2_scheme)], db: Annotated[AsyncIOMotorClient, Depends(get_database)]
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

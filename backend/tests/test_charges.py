@@ -2,7 +2,6 @@
 Test for the charging operations
 """
 
-# ruff: noqa: S101 D103
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -328,7 +327,7 @@ def test_authenticated_crud(test_app):
     )
     assert response.status_code == 201, response.content
     response_data = response.json()
-    expected_price = int(round(charge_model.kwh_charged / 100 * my_cpo.default_price))
+    expected_price = round(charge_model.kwh_charged / 100 * my_cpo.default_price)
     assert dateparser.parse(response_data['date']) == charge_model.date
     assert response_data['car_id'] == charge_model.car_id
     assert response_data['cpo_id'] == charge_model.cpo_id
@@ -337,7 +336,7 @@ def test_authenticated_crud(test_app):
     assert response_data['kwh_charged'] == charge_model.kwh_charged
     assert response_data['charge_type'] == charge_model.charge_type
     assert response_data['price_total'] == expected_price
-    assert response_data['price_per_kwh'] == int(round(expected_price / (charge_model.kwh_charged / 100)))
+    assert response_data['price_per_kwh'] == round(expected_price / (charge_model.kwh_charged / 100))
     assert response_data['car_name'] == my_car.name
     assert response_data['cpo_name'] == my_cpo.name
 
@@ -446,14 +445,14 @@ def test_authenticated_crud(test_app):
     assert response.status_code == 200, response.content
     response_data = response.json()
     assert response_data['price_total'] == charge_model.price_total
-    assert response_data['price_per_kwh'] == int(round(charge_model.price_total / (charge_model.kwh_charged / 100)))
+    assert response_data['price_per_kwh'] == round(charge_model.price_total / (charge_model.kwh_charged / 100))
 
     # check this has also been written
     response = test_app.get(f'/charge/{my_charge.id}', headers={'Authorization': f'Bearer {token}'})
     assert response.status_code == 200, response.content
     response_data = response.json()
     assert response_data['price_total'] == charge_model.price_total
-    assert response_data['price_per_kwh'] == int(round(charge_model.price_total / (charge_model.kwh_charged / 100)))
+    assert response_data['price_per_kwh'] == round(charge_model.price_total / (charge_model.kwh_charged / 100))
 
     # try deleting with another account
     response = test_app.delete(f'/charge/{my_charge.id}', headers={'Authorization': f'Bearer {token2}'})

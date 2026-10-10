@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 timeparse.py
 (c) Will Roberts <wildwilhelm@gmail.com>  1 February, 2014
@@ -49,45 +46,36 @@ DAYCLOCK = r'(?P<days>\d+):(?P<hours>\d{2}):' r'(?P<mins>\d{2}):(?P<secs>\d{2}(?
 
 
 def OPT(x):
-    return '(?:{x})?'.format(x=x)
+    return f'(?:{x})?'
 
 
 def OPTSEP(x):
-    return '(?:{x}\\s*(?:{SEPARATORS}\\s*)?)?'.format(x=x, SEPARATORS=SEPARATORS)
+    return f'(?:{x}\\s*(?:{SEPARATORS}\\s*)?)?'
 
 
 TIMEFORMATS = [
-    r'{WEEKS}\s*{DAYS}\s*{HOURS}\s*{MINS}\s*{SECS}'.format(
-        #        YEARS=OPTSEP(YEARS),
-        #        MONTHS=OPTSEP(MONTHS),
-        WEEKS=OPTSEP(WEEKS),
-        DAYS=OPTSEP(DAYS),
-        HOURS=OPTSEP(HOURS),
-        MINS=OPTSEP(MINS),
-        SECS=OPT(SECS),
-    ),
-    r'{MINCLOCK}'.format(MINCLOCK=MINCLOCK),
-    r'{WEEKS}\s*{DAYS}\s*{HOURCLOCK}'.format(WEEKS=OPTSEP(WEEKS), DAYS=OPTSEP(DAYS), HOURCLOCK=HOURCLOCK),
-    r'{DAYCLOCK}'.format(DAYCLOCK=DAYCLOCK),
-    r'{SECCLOCK}'.format(SECCLOCK=SECCLOCK),
-    r'{YEARS}'.format(YEARS=YEARS),
-    r'{MONTHS}'.format(MONTHS=MONTHS),
+    # years/months deliberately not part of the combined format
+    rf'{OPTSEP(WEEKS)}\s*{OPTSEP(DAYS)}\s*{OPTSEP(HOURS)}\s*{OPTSEP(MINS)}\s*{OPT(SECS)}',
+    rf'{MINCLOCK}',
+    rf'{OPTSEP(WEEKS)}\s*{OPTSEP(DAYS)}\s*{HOURCLOCK}',
+    rf'{DAYCLOCK}',
+    rf'{SECCLOCK}',
+    rf'{YEARS}',
+    rf'{MONTHS}',
 ]
 
 COMPILED_SIGN = re.compile(r'\s*' + SIGN + r'\s*(?P<unsigned>.*)$')
-COMPILED_TIMEFORMATS = [re.compile(r'\s*' + timefmt + r'\s*$', re.I) for timefmt in TIMEFORMATS]
+COMPILED_TIMEFORMATS = [re.compile(r'\s*' + timefmt + r'\s*$', re.IGNORECASE) for timefmt in TIMEFORMATS]
 
-MULTIPLIERS = dict(
-    [
-        ('years', 60 * 60 * 24 * 365),
-        ('months', 60 * 60 * 24 * 30),
-        ('weeks', 60 * 60 * 24 * 7),
-        ('days', 60 * 60 * 24),
-        ('hours', 60 * 60),
-        ('mins', 60),
-        ('secs', 1),
-    ]
-)
+MULTIPLIERS = {
+    'years': 60 * 60 * 24 * 365,
+    'months': 60 * 60 * 24 * 30,
+    'weeks': 60 * 60 * 24 * 7,
+    'days': 60 * 60 * 24,
+    'hours': 60 * 60,
+    'mins': 60,
+    'secs': 1,
+}
 
 
 def _interpret_as_minutes(sval, mdict):
@@ -101,18 +89,17 @@ def _interpret_as_minutes(sval, mdict):
     {'hours': '1', 'mins': '24'}
     """
     if (
-            sval.count(':') == 1
-            and '.' not in sval
-            and (('hours' not in mdict) or (mdict['hours'] is None))
-            and (('days' not in mdict) or (mdict['days'] is None))
-            and (('weeks' not in mdict) or (mdict['weeks'] is None))
-            and (('months' not in mdict) or (mdict['months'] is None))
-            and (('years' not in mdict) or (mdict['years'] is None))
+        sval.count(':') == 1
+        and '.' not in sval
+        and (('hours' not in mdict) or (mdict['hours'] is None))
+        and (('days' not in mdict) or (mdict['days'] is None))
+        and (('weeks' not in mdict) or (mdict['weeks'] is None))
+        and (('months' not in mdict) or (mdict['months'] is None))
+        and (('years' not in mdict) or (mdict['years'] is None))
     ):
         mdict['hours'] = mdict['mins']
         mdict['mins'] = mdict['secs']
         mdict.pop('secs')
-        pass
     return mdict
 
 

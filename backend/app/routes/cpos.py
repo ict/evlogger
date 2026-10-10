@@ -40,7 +40,6 @@ async def delete_cpo_by_id(id: str, db: AsyncIOMotorClient = DBDepend, user: Use
     success = await CPOCrud.delete_by_id(db, id, user.id)
     if not success:
         raise HTTPException(404, 'Not found')
-    return None
 
 
 @router.put('/{id}')

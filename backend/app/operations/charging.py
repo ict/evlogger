@@ -52,7 +52,7 @@ async def _check_plausible(
 
     if is_new:
         if item.price_total is None:
-            item.price_total = int(round((item.kwh_charged / 100) * cpo.get('default_price', 0)))
+            item.price_total = round((item.kwh_charged / 100) * cpo.get('default_price', 0))
         if item.car_odometer is None:
             item.car_odometer = car.get('odometer', 0) + item.car_km_driven
 
@@ -300,7 +300,7 @@ class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
                 if not cpo:
                     logs.append(f'Line {entry_no}: Creating new CPO for "{cpo_name}"')
                     # infer default price from entry
-                    default_price = int(round(price / (charged / 100))) if price is not None else 0
+                    default_price = round(price / (charged / 100)) if price is not None else 0
                     cpo_obj = CPO(name=cpo_name, default_price=default_price)
                     cpo = await CPOCrud.create(db, cpo_obj, owner_id)
                 line['cpo_id'] = cpo.id

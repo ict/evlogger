@@ -16,7 +16,7 @@ async def get_database() -> AsyncIOMotorClient:
 
 
 async def connect_to_mongo():
-    logger.info(f'Connecting to MongoDB at {str(config.MONGODB_URL)}')
+    logger.info(f'Connecting to MongoDB at {config.MONGODB_URL!s}')
     db.client = AsyncIOMotorClient(str(config.MONGODB_URL))
     logger.info('Connected to MongoDB')
 

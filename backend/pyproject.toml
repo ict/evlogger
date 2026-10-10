@@ -28,7 +28,7 @@ dev = [
     "pytest>=7.4.0,<8",
     "httpx>=0.24.1,<0.25",
     "pytest-cov>=4.1.0,<5",
-    "pymongo-inmemory<0.4",
+    "pymongo-inmemory>=0.5,<0.6",
 ]
 
 [tool.hatch.build.targets.sdist]

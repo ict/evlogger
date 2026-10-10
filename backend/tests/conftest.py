@@ -1,3 +1,5 @@
+import os
+import platform
 import uuid
 
 import pytest
@@ -6,6 +8,13 @@ from starlette.testclient import TestClient
 
 from app.core import config
 from app.main import app
+
+# pymongo-inmemory maps Darwin to the x86_64 "osx" builds, which need Rosetta on Apple Silicon.
+# Pick the native arm64 build instead; PYMONGOIM__* env vars set by the caller still win.
+if platform.system() == 'Darwin' and platform.machine() == 'arm64':
+    os.environ.setdefault('PYMONGOIM__OPERATING_SYSTEM', 'macos')
+    os.environ.setdefault('PYMONGOIM__OS_VERSION', 'arm')
+    os.environ.setdefault('PYMONGOIM__MONGO_VERSION', '8.0')
 
 
 @pytest.fixture(scope='module')

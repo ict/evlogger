@@ -61,7 +61,7 @@ export default function RetireCarModal({ open, onClose, onSaved, car, api, toast
         </>
       )}
     >
-      {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
+      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
       <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-muted)', marginBottom: 16 }}>
         Retiring freezes the car: no new charges or expenses can be added after the sale date.
         The final cost of ownership is computed from the sale.

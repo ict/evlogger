@@ -70,7 +70,7 @@ export default function ExpenseModal({ open, onClose, onSaved, expense, car, api
         </>
       )}
     >
-      {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
+      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
       <div className="form-group">
         <div className="toggle-group">
           <button type="button" className={`toggle-btn${!income ? ' active' : ''}`} onClick={() => set('kind', 'expense')}>Expense</button>

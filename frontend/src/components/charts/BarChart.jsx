@@ -7,8 +7,8 @@ const BASE_OPTS = {
   responsive: true, maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: { bodyFont: { family: CHART_FONT }, titleFont: { family: CHART_FONT } } },
   scales: {
-    x: { grid: { display: false }, ticks: { font: { family: CHART_FONT, size: 11 }, color: '#94a3b8' } },
-    y: { grid: { color: '#f1f5f9', drawBorder: false }, ticks: { font: { family: CHART_FONT, size: 11 }, color: '#94a3b8' } },
+    x: { grid: { display: false }, ticks: { font: { family: CHART_FONT, size: 11 }, color: 'var(--chart-tick)' } },
+    y: { grid: { color: 'var(--chart-grid)', drawBorder: false }, ticks: { font: { family: CHART_FONT, size: 11 }, color: 'var(--chart-tick)' } },
   },
 };
 
@@ -46,7 +46,7 @@ export default function BarChart({ labels, values, datasets, stacked, unit, colo
     plugins: {
       ...BASE_OPTS.plugins,
       legend: multi
-        ? { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 12, color: '#64748b', font: { family: CHART_FONT, size: 11 } } }
+        ? { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 12, color: 'var(--chart-legend)', font: { family: CHART_FONT, size: 11 } } }
         : BASE_OPTS.plugins.legend,
       tooltip,
       valueLabels: { enabled: !!showValues, decimals: valueDecimals, unit: valueUnit, stacked: !!stacked },

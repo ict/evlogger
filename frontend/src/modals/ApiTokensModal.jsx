@@ -135,7 +135,7 @@ export default function ApiTokensModal({ open, onClose, api, toast }) {
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Create new token</div>
               {err && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 12 }}>{err}</div>
+                <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 12 }}>{err}</div>
               )}
               <div className="form-row">
                 <div className="form-group" style={{ flex: 2 }}>

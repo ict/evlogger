@@ -1,15 +1,15 @@
 import ChartCanvas from './ChartCanvas.jsx';
 
-const ACCENT = 'oklch(0.52 0.19 252)';
-const ACCENT_FILL = 'rgba(99,102,241,0.1)';
+const ACCENT = 'var(--accent)';
+const ACCENT_FILL = 'var(--chart-fill)';
 const CHART_FONT = 'Plus Jakarta Sans';
 
 const BASE_OPTS = {
   responsive: true, maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: { bodyFont: { family: CHART_FONT }, titleFont: { family: CHART_FONT } } },
   scales: {
-    x: { grid: { display: false }, ticks: { font: { family: CHART_FONT, size: 11 }, color: '#94a3b8' } },
-    y: { grid: { color: '#f1f5f9', drawBorder: false }, ticks: { font: { family: CHART_FONT, size: 11 }, color: '#94a3b8' } },
+    x: { grid: { display: false }, ticks: { font: { family: CHART_FONT, size: 11 }, color: 'var(--chart-tick)' } },
+    y: { grid: { color: 'var(--chart-grid)', drawBorder: false }, ticks: { font: { family: CHART_FONT, size: 11 }, color: 'var(--chart-tick)' } },
   },
 };
 

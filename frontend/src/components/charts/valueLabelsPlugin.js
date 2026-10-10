@@ -1,3 +1,4 @@
+import { cssVar } from '../../theme.js';
 import { Chart } from 'chart.js';
 
 const CHART_FONT = 'Plus Jakarta Sans';
@@ -39,7 +40,7 @@ export function ensureValueLabelsPluginRegistered() {
           else { y = y - 6; }
         }
 
-        ctx.fillStyle = inside ? '#ffffff' : (cfg.color || '#475569');
+        ctx.fillStyle = inside ? '#ffffff' : (cfg.color || cssVar('--chart-label'));
         ctx.fillText(text, x, y);
       };
 

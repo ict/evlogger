@@ -102,7 +102,7 @@ export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos
         </>
       )}
     >
-      {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
+      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
       <div className="form-row">
         <div className="form-group">
           <label className="form-label">Date & Time</label>

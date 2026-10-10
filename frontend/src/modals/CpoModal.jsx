@@ -42,7 +42,7 @@ export default function CpoModal({ open, onClose, onSaved, cpo, api, toast }) {
         </>
       )}
     >
-      {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
+      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
       <div className="form-group">
         <label className="form-label">CPO Name</label>
         <input type="text" className="form-input" placeholder="e.g. Ionity, EnBW" value={name} onChange={(e) => setName(e.target.value)} />

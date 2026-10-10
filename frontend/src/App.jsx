@@ -13,9 +13,11 @@ import RetireCarModal from './modals/RetireCarModal.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import Badge from './components/Badge.jsx';
 import ApiTokensModal from './modals/ApiTokensModal.jsx';
+import { nextThemePref, setThemePref, useTheme } from './theme.js';
 import ToastContainer from './components/ToastContainer.jsx';
 
 const API_BASE = '/api';
+const THEME_LABELS = { system: 'System', light: 'Light', dark: 'Dark' };
 
 const safeStorage = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -31,6 +33,7 @@ export default function App() {
   const [dashFrom, setDashFrom] = useState(() => safeStorage.get('cl_dashFrom') || '');
   const [dashTo, setDashTo] = useState(() => safeStorage.get('cl_dashTo') || '');
   const [tab, setTab] = useState('dashboard');
+  const { pref: themePref } = useTheme();
   const [cars, setCars] = useState([]);
   const [selectedCarId, setSelectedCarId] = useState(() => safeStorage.get('cl_carId') || '');
   const [cpos, setCpos] = useState([]);
@@ -257,6 +260,9 @@ export default function App() {
                 {auth.user?.email && <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{auth.user.email}</div>}
               </div>
               <div className="dropdown-item" onClick={() => { setUserDropdown(false); setShowTokensModal(true); }}>API tokens</div>
+              <div className="dropdown-item" onClick={() => setThemePref(nextThemePref(themePref))}>
+                Theme: {THEME_LABELS[themePref]}
+              </div>
               <div className="dropdown-item" onClick={() => { setUserDropdown(false); logout(); }}>Sign out</div>
             </div>
           )}

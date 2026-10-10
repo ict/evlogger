@@ -85,7 +85,7 @@ export default function CarModal({ open, onClose, onSaved, car, api, toast }) {
         </>
       )}
     >
-      {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
+      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '9px 13px', fontSize: 13, color: 'var(--red)', marginBottom: 14 }}>{err}</div>}
       <div className="form-group">
         <label className="form-label">Name / Nickname</label>
         <input type="text" className="form-input" placeholder="e.g. My Model 3" value={f.name} onChange={(e) => set('name', e.target.value)} />

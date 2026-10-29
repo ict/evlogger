@@ -279,6 +279,10 @@ tr:hover .row-actions { opacity: 1; }
   .hamburger-btn { display: flex; }
   .mobile-menu { display: flex; }
 }
+/* iOS Safari zooms into inputs below 16px on focus and stays zoomed after blur */
+@media (hover: none) and (pointer: coarse) {
+  .form-input, .input-sm { font-size: 16px; }
+}
 
 /* --- Expenses --- */
 .exp-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }

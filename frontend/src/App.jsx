@@ -169,6 +169,22 @@ export default function App() {
     return () => document.removeEventListener('click', h);
   }, []);
 
+  // mobile: the page scrolls the window; hide the topbar while scrolling down, show it on scroll up
+  const [topbarHidden, setTopbarHidden] = useState(false);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y < 60) setTopbarHidden(false);
+      else if (y > lastY + 6) setTopbarHidden(true);
+      else if (y < lastY - 6) setTopbarHidden(false);
+      else return;
+      lastY = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const handleDemo = useCallback(() => {
     _mockApi.current = makeMockApi();
     const demoAuth = { demo: true, baseUrl: '', token: 'demo', user: { username: 'demo', full_name: 'Demo User', email: 'demo@evlogger.app' } };
@@ -216,7 +232,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
+      <header className={`topbar${topbarHidden && !mobileMenu ? ' topbar-hidden' : ''}`}>
         <div className="topbar-logo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />

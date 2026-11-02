@@ -216,7 +216,12 @@ export function makeMockApi() {
     async getCpos() { await delay(); return cpos; },
     async createCpo(d) { await delay(); const c = { ...d, id: nid(), owner_id: 'demo' }; cpos.push(c); return c; },
     async updateCpo(id, d) { await delay(); const i = cpos.findIndex((c) => c.id === id); if (i >= 0) cpos[i] = { ...cpos[i], ...d }; return cpos[i]; },
-    async deleteCpo(id) { await delay(); cpos = cpos.filter((c) => c.id !== id); return null; },
+    async deleteCpo(id) {
+      await delay();
+      if (charges.some((c) => c.cpo_id === id)) cpos = cpos.map((c) => (c.id === id ? { ...c, archived: true } : c));
+      else cpos = cpos.filter((c) => c.id !== id);
+      return null;
+    },
     async getCharges(p = {}) {
       await delay();
       let list = [...charges];

@@ -4,14 +4,16 @@ import { fmtEur, fmtDateTimeInput, fmtDay } from '../format.js';
 
 export default function ChargeModal({ open, onClose, onSaved, charge, cars, cpos, charges, api, toast, preselectedCarId }) {
   const sortedCpos = (() => {
+    // archived CPOs are hidden, except the one the edited charge already uses
+    const selectable = cpos.filter((c) => !c.archived || c.id === charge?.cpo_id);
     const counts = {};
     for (const c of charges || []) counts[c.cpo_id] = (counts[c.cpo_id] || 0) + 1;
-    const top3 = [...cpos]
+    const top3 = [...selectable]
       .filter((c) => counts[c.id])
       .sort((a, b) => counts[b.id] - counts[a.id] || a.name.localeCompare(b.name))
       .slice(0, 3);
     const top3Ids = new Set(top3.map((c) => c.id));
-    const rest = cpos.filter((c) => !top3Ids.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+    const rest = selectable.filter((c) => !top3Ids.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
     return { top3, rest };
   })();
 

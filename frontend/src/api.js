@@ -31,7 +31,7 @@ export function makeApi(baseUrl, token) {
     createCar: (d) => req('/car/', { method: 'POST', body: JSON.stringify(d) }),
     updateCar: (id, d) => req(`/car/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
     deleteCar: (id) => req(`/car/${id}`, { method: 'DELETE' }),
-    getCpos: () => req('/cpo/?limit=100'),
+    getCpos: () => req('/cpo/?limit=100&include_archived=true'),
     createCpo: (d) => req('/cpo/', { method: 'POST', body: JSON.stringify(d) }),
     updateCpo: (id, d) => req(`/cpo/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
     deleteCpo: (id) => req(`/cpo/${id}`, { method: 'DELETE' }),

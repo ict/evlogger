@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
@@ -13,7 +14,15 @@ from app.routes.cpos import router as cpo_router
 from app.routes.expenses import router as expense_router
 from app.routes.users import router as user_router
 
-app = FastAPI(title=PROJECT_NAME, root_path=os.environ.get('API_ROOT_PATH', ''))
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await connect_to_mongo()
+    yield
+    await close_mongo_connection()
+
+
+app = FastAPI(title=PROJECT_NAME, root_path=os.environ.get('API_ROOT_PATH', ''), lifespan=lifespan)
 
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']
@@ -25,9 +34,6 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
-
-app.add_event_handler('startup', connect_to_mongo)
-app.add_event_handler('shutdown', close_mongo_connection)
 
 app.include_router(admin_router)
 app.include_router(car_router, prefix='/car', tags=['Cars'])

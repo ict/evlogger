@@ -93,6 +93,22 @@ async def _check_plausible(
         await get_collection(db, COLLECTION_CARS).update_one({'_id': car_id}, {'$set': {'odometer': item.car_odometer}})
 
 
+async def delete_or_archive_cpo(db: AsyncIOMotorClient, cpo_id: str, owner_id: str) -> bool:
+    """Delete a CPO, or archive it if charges reference it. Returns False if it does not exist for this owner."""
+    cpo = await CPOCrud.get_by_id(db, cpo_id, owner_id)
+    if not cpo:
+        return False
+    in_use = await get_collection(db, COLLECTION_CHARGES).count_documents(
+        {'cpo_id': cpo_id, 'owner_id': owner_id}, limit=1
+    )
+    if in_use:
+        await CPOCrud.update_by_id(
+            db, cpo_id, CPO(name=cpo.name, default_price=cpo.default_price, archived=True), owner_id
+        )
+        return True
+    return await CPOCrud.delete_by_id(db, cpo_id, owner_id)
+
+
 class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
     def __init__(self, collection_name: str):
         super().__init__(collection_name, ChargeSubmission, ChargeInDb)
@@ -297,6 +313,11 @@ class ChargeCrud(CRUDBase[ChargeSubmission, ChargeInDb]):
                     errors = True
                     continue
                 cpo = await CPOCrud.get_by_property(db, 'name', cpo_name, owner_id)
+                if cpo and cpo.archived:
+                    logs.append(f'Line {entry_no}: Restoring archived CPO "{cpo_name}"')
+                    cpo = await CPOCrud.update_by_id(
+                        db, cpo.id, CPO(name=cpo.name, default_price=cpo.default_price, archived=False), owner_id
+                    )
                 if not cpo:
                     logs.append(f'Line {entry_no}: Creating new CPO for "{cpo_name}"')
                     # infer default price from entry

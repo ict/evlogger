@@ -92,3 +92,40 @@ def test_authenticated_crud(test_app):
     assert response.status_code == 200, response.content
     response_data = response.json()
     assert response_data == []
+
+
+def test_delete_archives_cpo_used_by_charge(test_app):
+    from tests.conftest import charge_payload, create_car, create_cpo, new_user_headers
+
+    headers = new_user_headers(test_app)
+    car = create_car(test_app, headers)
+    used = create_cpo(test_app, headers)
+    unused = create_cpo(test_app, headers)
+    response = test_app.post(
+        '/charge', headers=headers, json=charge_payload(car['id'], used['id'], '2024-01-01T10:00:00', 1000)
+    )
+    assert response.status_code == 201, response.content
+
+    # unused CPO is hard-deleted, used one is archived
+    assert test_app.delete(f'/cpo/{unused["id"]}', headers=headers).status_code == 204
+    assert test_app.get(f'/cpo/{unused["id"]}', headers=headers).status_code == 404
+    assert test_app.delete(f'/cpo/{used["id"]}', headers=headers).status_code == 204
+
+    # hidden from default list, shown with include_archived, still gettable
+    assert test_app.get('/cpo', headers=headers).json() == []
+    listed = test_app.get('/cpo?include_archived=true', headers=headers).json()
+    assert [c['id'] for c in listed] == [used['id']]
+    assert listed[0]['archived'] is True
+
+    # charges still work against the archived CPO
+    response = test_app.post(
+        '/charge', headers=headers, json=charge_payload(car['id'], used['id'], '2024-01-02T10:00:00', 1100)
+    )
+    assert response.status_code == 201, response.content
+
+    # restore
+    response = test_app.put(
+        f'/cpo/{used["id"]}', headers=headers, json={'name': 'Test CPO', 'default_price': 40, 'archived': False}
+    )
+    assert response.status_code == 200, response.content
+    assert [c['id'] for c in test_app.get('/cpo', headers=headers).json()] == [used['id']]

@@ -79,13 +79,18 @@ class CRUDBase(Generic[InCls, DbCls]):
         return None
 
     async def list(
-        self, db: AsyncIOMotorClient, limit: int = 20, offset: int = 0, owner_id: str | None = None
+        self,
+        db: AsyncIOMotorClient,
+        limit: int = 20,
+        offset: int = 0,
+        owner_id: str | None = None,
+        extra_filter: dict | None = None,
     ) -> list[DbCls]:
         result: list[CarInDb] = []
-        if not owner_id:
-            items = get_collection(db, self.collection).find(limit=limit, skip=offset)
-        else:
-            items = get_collection(db, self.collection).find({'owner_id': owner_id}, limit=limit, skip=offset)
+        find_filter = dict(extra_filter or {})
+        if owner_id:
+            find_filter['owner_id'] = owner_id
+        items = get_collection(db, self.collection).find(find_filter, limit=limit, skip=offset)
         async for item in items:
             item['id'] = str(item['_id'])
             result.append(self.dbcls(**item))

@@ -42,6 +42,7 @@ class CarInDb(Car, DbIdMixin):
 class CPO(BaseModel):
     name: str
     default_price: int = Field(..., description='Default price of one kWh in 1/100s of currency (e.g. cents)')
+    archived: bool = Field(False, description='Hidden from pickers; kept because charges reference it')
 
 
 class CPOInDb(CPO, DbIdMixin):

@@ -20,6 +20,13 @@
   },
   "packageRules": [
     {
+      "description": "Python runtime stays on 3.12 until dependencies ship wheels for newer versions",
+      "matchPackageNames": [
+        "python"
+      ],
+      "enabled": false
+    },
+    {
       "description": "One PR per week for backend runtime updates",
       "matchManagers": [
         "pep621"

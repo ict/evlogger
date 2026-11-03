@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   backend:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: backend
@@ -40,7 +40,7 @@ jobs:
       - run: uv run pytest -q tests/
 
   frontend:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: frontend
@@ -56,7 +56,7 @@ jobs:
 
   images:
     # Catches broken base image or Dockerfile updates; images are built for real on the private CI.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         component: [backend, frontend]
@@ -65,7 +65,7 @@ jobs:
       - run: docker build -f ${{ matrix.component }}/docker/Dockerfile ${{ matrix.component }}
 
   compose:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     env:
       API_SECRET_KEY: ci-only-validation-key-0123456789abcdef
       EVLOGGER_DOMAIN: evlogger.example.com

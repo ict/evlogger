@@ -23,12 +23,12 @@ def test_register_users(test_app):
     response = test_app.post(
         '/users/register', json={'username': 'user', 'email': 'user2@koala.de', 'password': 'user'}
     )
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, 'Same username should reject registration'
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, 'Same username should reject registration'
 
     response = test_app.post(
         '/users/register', json={'username': 'user2', 'email': 'user@koala.de', 'password': 'user'}
     )
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, 'Same email should reject registration'
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, 'Same email should reject registration'
 
 
 def test_api_tokens(test_app):

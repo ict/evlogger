@@ -96,7 +96,7 @@ def test_every_category_is_accepted(test_app, headers, car, category):
 @pytest.mark.parametrize('category', ['food', '', 'Tires'])
 def test_invalid_category_is_422(test_app, headers, car, category):
     response = test_app.post('/expense', headers=headers, json=expense_payload(car['id'], category=category))
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 def test_kind_defaults_to_expense(test_app, headers, car):
@@ -111,13 +111,13 @@ def test_create_income(test_app, headers, car):
 
 def test_invalid_kind_is_422(test_app, headers, car):
     response = test_app.post('/expense', headers=headers, json=expense_payload(car['id'], kind='gift'))
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 @pytest.mark.parametrize('amount', [0, -1, -45000])
 def test_non_positive_amount_is_422(test_app, headers, car, amount):
     response = test_app.post('/expense', headers=headers, json=expense_payload(car['id'], amount=amount))
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 @pytest.mark.parametrize('car_id', ['not-an-id', '64b7f0c2a1b2c3d4e5f60718'])
@@ -219,7 +219,7 @@ class TestListFilters:
 
     def test_invalid_category_filter_is_422(self, test_app, headers):
         response = test_app.get('/expense', headers=headers, params={'category': 'nope'})
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     def test_limit_and_offset(self, test_app, headers, populated):
         assert self.ids(test_app, headers, limit=2, offset=1) == [

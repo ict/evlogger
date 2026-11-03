@@ -56,7 +56,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
 
 @router.post('/users/register', response_model=User)
 async def register(user_data: UserRegister, db: AsyncIOMotorClient = DBDepends) -> User:
-    exists_exception = HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'Username or email address already in use')
+    exists_exception = HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, 'Username or email address already in use')
     first_user = await UserCrudOp.list(db, limit=1)
     is_bootstrap = not first_user
     is_admin = is_bootstrap

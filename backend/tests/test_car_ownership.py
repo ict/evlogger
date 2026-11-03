@@ -114,7 +114,7 @@ class TestValueEstimate:
     )
     def test_out_of_range_is_422(self, test_app, headers, car, field, value):
         response = put_car(test_app, headers, car, **{field: value})
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class TestRetiring:
@@ -210,7 +210,7 @@ class TestRetiredCarIsFrozen:
 
     def test_charge_after_sale_date_is_rejected(self, test_app, headers, retired_car, cpo):
         response = add_charge(test_app, headers, retired_car, cpo, '2024-07-01T00:00:00Z', 5100)
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         assert 'car was retired on 2024-06-30' in response.json()['detail']
 
     @pytest.mark.parametrize('date', ['2024-06-01T12:00:00Z', '2024-06-30T23:59:00Z'])
@@ -240,7 +240,7 @@ class TestRetiredCarIsFrozen:
         charge = test_app.get('/charge', headers=headers, params={'car_id': retired_car['id']}).json()[0]
         payload = charge | {'date': '2024-08-01T12:00:00Z'}
         response = test_app.put(f'/charge/{charge["id"]}', headers=headers, json=payload)
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     def test_existing_entries_stay_deletable(self, test_app, headers, retired_car):
         expense = add_expense(test_app, headers, retired_car, '2024-05-01T12:00:00Z').json()

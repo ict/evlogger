@@ -7,7 +7,7 @@ from starlette.status import (
     HTTP_201_CREATED,
     HTTP_204_NO_CONTENT,
     HTTP_406_NOT_ACCEPTABLE,
-    HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_422_UNPROCESSABLE_CONTENT,
 )
 
 from app.core.db import AsyncIOMotorClient, get_database
@@ -60,7 +60,7 @@ async def create_charge(
     try:
         return await ChargeCrudOp.create(db, charge, user.id)
     except ValueError as err:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, str(err)) from None
+        raise HTTPException(HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from None
 
 
 @router.get('/{id}')
@@ -85,7 +85,7 @@ async def update_charge_by_id(
     try:
         new_charge = await ChargeCrudOp.update_by_id(db, id, charge, user.id)
     except ValueError as err:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, str(err)) from None
+        raise HTTPException(HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from None
     if not new_charge:
         raise HTTPException(404, 'Not found')
     return new_charge

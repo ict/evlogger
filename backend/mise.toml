@@ -17,7 +17,7 @@ run = "python app.py"
 
 [tasks.test]
 description = "Run tests"
-run = "pytest tests/"
+run = "uv run pytest tests/"
 
 [tasks.format]
 description = "Format and fix linting"

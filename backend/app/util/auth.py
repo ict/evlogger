@@ -3,10 +3,10 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
+import bcrypt
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from starlette import status
 
 from app.core import config
@@ -18,15 +18,19 @@ SECRET_KEY = config.API_SECRET_KEY
 ALGORITHM = config.API_ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = config.API_ACCESS_TOKEN_EXPIRE_MINUTES
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='users/token')
-pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+
+def _bcrypt_input(password: str) -> bytes:
+    # bcrypt only uses the first 72 bytes; bcrypt>=5 raises instead of truncating.
+    return password.encode()[:72]
 
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(_bcrypt_input(plain_password), hashed_password.encode())
 
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(_bcrypt_input(password), bcrypt.gensalt()).decode()
 
 
 def authenticate_user(user: UserInDb, password: str) -> bool:
